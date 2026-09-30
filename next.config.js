@@ -27,6 +27,7 @@ const config = {
   // Logos de /public et polices du billet, lus par le générateur (fs) : à inclure explicitement.
   outputFileTracingIncludes: {
     "/api/events/[id]/register": ["./public/*.png", "./src/server/fonts/*"],
+    "/api/tickets/[code]/pdf": ["./public/*.png", "./src/server/fonts/*"],
   },
 };
 

@@ -4,10 +4,13 @@ import nodemailer from "nodemailer";
 import type { Event, Participant, Ticket } from "@prisma/client";
 import { db } from "@/server/db";
 import { generateQRCode } from "@/server/utils/ticket";
-import { generateTicketPDF } from "@/server/utils/generateTicketPDF";
+import {
+  buildTicketPDF,
+  formatDate,
+  formatTime,
+  startAfterDoors,
+} from "@/server/utils/ticketDocument";
 import { branding } from "@/config/branding";
-
-const EVENT_TIME_ZONE = process.env.EVENT_TIME_ZONE ?? "Europe/Paris";
 
 const MAX_NAME_LENGTH = 100;
 const MAX_EMAIL_LENGTH = 254;
@@ -20,34 +23,6 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-
-const formatDate = (date: Date) =>
-  date.toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: EVENT_TIME_ZONE,
-  });
-
-/** « 19h45 », « 20h » : format français, sans « :00 » superflu. */
-const formatTime = (date: Date) => {
-  const parts = new Intl.DateTimeFormat("fr-FR", {
-    hour: "numeric",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: EVENT_TIME_ZONE,
-  }).formatToParts(date);
-  const hour = parts.find((part) => part.type === "hour")?.value ?? "";
-  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
-  return minute === "00" ? `${hour}h` : `${hour}h${minute}`;
-};
-
-/** Heure de début de la séance, si le club distingue ouverture des portes et début. */
-const startAfterDoors = (date: Date) =>
-  branding.startsAfterDoorsMinutes
-    ? new Date(date.getTime() + branding.startsAfterDoorsMinutes * 60_000)
-    : null;
 
 const buildEmailSignature = () =>
   branding.emailSignature
@@ -115,10 +90,9 @@ async function sendTicketEmail(params: {
   participant: Participant;
   event: Event;
   ticket: Ticket;
-  pdf: Buffer;
   reused: boolean;
 }): Promise<boolean> {
-  const { participant, event, ticket, pdf, reused } = params;
+  const { participant, event, ticket, reused } = params;
 
   if (process.env.EMAIL_DISABLED === "true") {
     console.log(`📮 Envoi d'e-mail désactivé (EMAIL_DISABLED=true), destinataire : ${participant.email}`);
@@ -130,6 +104,9 @@ async function sendTicketEmail(params: {
   }
 
   try {
+    // Le PDF n'est généré que lorsqu'un e-mail part réellement : l'inscription reste rapide.
+    const pdf = await buildTicketPDF({ ticket, event, participant });
+
     const port = Number(process.env.SMTP_PORT ?? 587);
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -235,22 +212,7 @@ export default async function handler(
     const { ticket } = result;
     const reused = result.kind === "existing";
 
-    const pdf = await generateTicketPDF({
-      participantName: participant.name,
-      eventName: event.name,
-      dateLabel: formatDate(event.date),
-      timeLabel: formatTime(startAfterDoors(event.date) ?? event.date),
-      doorsLabel: startAfterDoors(event.date) ? formatTime(event.date) : undefined,
-      location: event.location ?? "Lieu à venir",
-      code: ticket.code,
-      qrCodeDataUrl: ticket.qrCode,
-      ticketNumber: ticket.number ?? undefined,
-      maxTickets: event.maxTickets ?? undefined,
-      posterUrl: event.image,
-      info: event.description,
-    });
-
-    const emailSent = await sendTicketEmail({ participant, event, ticket, pdf, reused });
+    const emailSent = await sendTicketEmail({ participant, event, ticket, reused });
 
     return res.status(200).json({
       success: true,
@@ -267,7 +229,8 @@ export default async function handler(
         participantName: participant.name,
         participantEmail: participant.email,
       },
-      pdfBase64: pdf.toString("base64"),
+      // Le PDF est généré à la demande (l'inscription ne le renvoie plus).
+      pdfUrl: `/api/tickets/${ticket.code}/pdf`,
     });
   } catch (error) {
     console.error("❌ Erreur lors de la création / récupération du ticket :", error);

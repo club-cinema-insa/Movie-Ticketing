@@ -111,29 +111,6 @@ export default function RegisterPage({ event }: EventPageProps) {
     }
   };
 
-  const handleDownload = () => {
-    if (!ticketData?.pdfBase64) return;
-
-    const byteCharacters = atob(ticketData.pdfBase64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const blob = new Blob([new Uint8Array(byteNumbers)], {
-      type: "application/pdf",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const safeName = ticketData.ticket.eventName
-      ? ticketData.ticket.eventName.replace(/\s+/g, "_")
-      : "ticket";
-    a.download = `${safeName}_ticket.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="max-w-4xl mx-auto px-4 space-y-8">
@@ -279,12 +256,27 @@ export default function RegisterPage({ event }: EventPageProps) {
                   </p>
                 )}
 
-                <button
-                  onClick={handleDownload}
+                {ticketData.ticket.qrCode && (
+                  <div className="mx-auto w-fit rounded-xl border border-slate-200 bg-white p-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={ticketData.ticket.qrCode}
+                      alt="QR code de votre billet"
+                      className="h-40 w-40"
+                    />
+                    <p className="mt-2 text-xs font-mono tracking-wide text-slate-600">
+                      {ticketData.ticket.code}
+                    </p>
+                  </div>
+                )}
+
+                <a
+                  href={ticketData.pdfUrl}
+                  download
                   className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-sm"
                 >
                   Télécharger mon ticket PDF
-                </button>
+                </a>
               </div>
             )}
           </div>
