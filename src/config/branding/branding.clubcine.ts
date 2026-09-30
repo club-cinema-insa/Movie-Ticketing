@@ -13,7 +13,7 @@ const brandingClubCine: BrandingConfig = {
   footerText: "© 2026 Club Ciné INSA — Projections & culture ciné.",
   emailSignature: "L’équipe du Club Ciné INSA",
   eventTermsText: "Les projections sont réservées aux étudiants INSA.",
-  doorsOpenMinutesBefore: 30,
+  startsAfterDoorsMinutes: 15,
   startLabel: "Début de la projection",
 };
 

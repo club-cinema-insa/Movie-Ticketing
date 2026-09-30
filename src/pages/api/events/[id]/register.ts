@@ -43,11 +43,11 @@ const formatTime = (date: Date) => {
   return minute === "00" ? `${hour}h` : `${hour}h${minute}`;
 };
 
-/** Ouverture des portes, si le club l'a configurée : « vers 19h30 ». */
-const formatDoors = (date: Date) =>
-  branding.doorsOpenMinutesBefore
-    ? `vers ${formatTime(new Date(date.getTime() - branding.doorsOpenMinutesBefore * 60_000))}`
-    : undefined;
+/** Heure de début de la séance, si le club distingue ouverture des portes et début. */
+const startAfterDoors = (date: Date) =>
+  branding.startsAfterDoorsMinutes
+    ? new Date(date.getTime() + branding.startsAfterDoorsMinutes * 60_000)
+    : null;
 
 const buildEmailSignature = () =>
   branding.emailSignature
@@ -156,8 +156,8 @@ async function sendTicketEmail(params: {
         }</p>
         <p>📅 ${escapeHtml(formatDate(event.date))}<br />
         ${
-          formatDoors(event.date)
-            ? `🚪 Ouverture des portes ${escapeHtml(formatDoors(event.date) ?? "")}<br />🎬 ${escapeHtml(branding.startLabel ?? "Début")} à ${escapeHtml(formatTime(event.date))}<br />`
+          startAfterDoors(event.date)
+            ? `🚪 Ouverture des portes à ${escapeHtml(formatTime(event.date))}<br />🎬 ${escapeHtml(branding.startLabel ?? "Début")} à ${escapeHtml(formatTime(startAfterDoors(event.date) as Date))}<br />`
             : `🕒 ${escapeHtml(formatTime(event.date))}<br />`
         }
         📍 ${escapeHtml(event.location ?? "Lieu à venir")}</p>
@@ -239,8 +239,8 @@ export default async function handler(
       participantName: participant.name,
       eventName: event.name,
       dateLabel: formatDate(event.date),
-      timeLabel: formatTime(event.date),
-      doorsLabel: formatDoors(event.date),
+      timeLabel: formatTime(startAfterDoors(event.date) ?? event.date),
+      doorsLabel: startAfterDoors(event.date) ? formatTime(event.date) : undefined,
       location: event.location ?? "Lieu à venir",
       code: ticket.code,
       qrCodeDataUrl: ticket.qrCode,

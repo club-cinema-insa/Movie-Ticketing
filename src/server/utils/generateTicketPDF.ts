@@ -8,9 +8,9 @@ export type TicketPDFInput = {
   eventName: string;
   /** Ex. « samedi 15 novembre 2025 » */
   dateLabel: string;
-  /** Heure de début, ex. « 20h » */
+  /** Heure de début de la séance, ex. « 20h » */
   timeLabel: string;
-  /** Ouverture des portes, ex. « vers 19h30 ». Absent : la ligne n'est pas affichée. */
+  /** Ouverture des portes, ex. « 19h45 ». Absent : la ligne n'est pas affichée. */
   doorsLabel?: string;
   location: string;
   code: string;
@@ -305,6 +305,7 @@ function drawTicket(
       align: "center",
       ellipsis: true,
     });
+  let contentEnd = y + 14;
   y += 26;
 
   // ── Informations pratiques (facultatif) ──
@@ -319,21 +320,10 @@ function drawTicket(
       align: "center",
       ellipsis: true,
     });
-    y += infoHeight + 18 + 16;
+    contentEnd = y + infoHeight + 18;
   }
 
-  // ── Pied de billet ──
-  doc.font("Body").fontSize(7.5);
-  const terms = branding.eventTermsText;
-  const termsHeight = Math.min(doc.heightOfString(terms, { width: CONTENT_WIDTH }), 24);
-  doc.fillColor(MUTED).text(terms, cardX + INSET, y, {
-    width: CONTENT_WIDTH,
-    height: 24,
-    align: "center",
-    ellipsis: true,
-  });
-
-  return y + termsHeight;
+  return contentEnd;
 }
 
 /**
