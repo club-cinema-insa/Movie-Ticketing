@@ -17,7 +17,6 @@ const brandingClubCine: BrandingConfig = {
   inkColor: "#0b2e2f",
   canvasColor: "#fbf8ec",
   tagline: "Réservez gratuitement votre place pour les prochaines séances.",
-  footerText: "© 2026 Club Ciné INSA — Projections & culture ciné.",
   emailSignature: "L’équipe du Club Ciné INSA",
   eventTermsText: "Les séances sont réservées aux étudiants INSA.",
   startsAfterDoorsMinutes: 15,

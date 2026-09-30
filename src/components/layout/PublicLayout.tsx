@@ -44,14 +44,13 @@ export function PublicLayout({ children, title, description, image, noindex }: P
 
       <main className="flex-1">{children}</main>
 
-      <footer className="mt-16 bg-brand-strong text-white/80">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="text-sm">{branding.footerText}</p>
-          <Link
-            href="/admin/events"
-            className="inline-flex items-center gap-2 self-start rounded-lg text-sm font-medium text-white/70 hover:text-white sm:self-auto"
-          >
-            <Lock className="size-4" aria-hidden />
+      <footer className="mt-16 bg-brand-strong text-white/75">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6 text-sm sm:px-6">
+          <p>
+            © {new Date().getFullYear()} {branding.appName}
+          </p>
+          <Link href="/admin/events" className="inline-flex items-center gap-1.5 rounded-lg font-medium hover:text-white">
+            <Lock className="size-3.5" aria-hidden />
             Espace bureau
           </Link>
         </div>

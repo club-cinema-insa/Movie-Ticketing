@@ -55,7 +55,7 @@ export function buildTicketEmail(params: {
   const intro = reused
     ? "Vous aviez déjà réservé votre place pour cette séance. Votre billet est de nouveau joint à ce message."
     : "Votre place est réservée. Votre billet est joint à ce message, au format PDF.";
-  const advice = "Présentez le QR code à l’entrée, sur votre téléphone ou imprimé.";
+  const advice = "Présentez le QR code à l’entrée.";
   const cancelAdvice = "Un empêchement ? Libérez votre place pour un autre étudiant en annulant votre réservation (possible jusqu’à l’ouverture des portes).";
 
   const rowsHtml = rows

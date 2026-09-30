@@ -13,7 +13,6 @@ const brandingDefault: BrandingConfig = {
   inkColor: "#0f172a",
   canvasColor: "#f8fafc",
   tagline: "Réservez votre place en quelques secondes.",
-  footerText: "© 2026 Event Ticketing System. Tous droits réservés.",
   emailSignature: "L’équipe Event Ticketing System",
   eventTermsText:
     "En vous inscrivant, vous acceptez les conditions de l’événement et les règles de sécurité en vigueur.",

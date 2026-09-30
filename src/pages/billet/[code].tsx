@@ -157,7 +157,7 @@ export default function TicketPage(props: TicketPageProps) {
       <div className="mx-auto max-w-md space-y-5 px-4 pt-6 sm:pt-10">
         <div>
           <h1 className="text-3xl font-extrabold">Votre billet</h1>
-          <p className="mt-1 text-[0.95rem] text-subtle">Présentez ce QR code à l’entrée, sur votre téléphone ou imprimé.</p>
+          <p className="mt-1 text-[0.95rem] text-subtle">Présentez ce QR code à l’entrée.</p>
         </div>
 
         <TicketStub ticket={ticket} eventName={event.name} />

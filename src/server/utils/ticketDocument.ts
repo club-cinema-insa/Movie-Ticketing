@@ -51,9 +51,7 @@ export function buildTicketPDF(params: {
     code: ticket.code,
     qrCodeDataUrl: ticket.qrCode,
     ticketNumber: ticket.number ?? undefined,
-    maxTickets: event.maxTickets ?? undefined,
     posterUrl: event.image,
-    info: event.description,
   });
 }
 

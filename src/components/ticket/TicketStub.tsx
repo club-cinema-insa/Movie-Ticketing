@@ -24,6 +24,8 @@ export function TicketStub({ ticket, eventName }: { ticket: TicketStubData; even
         )}
       </div>
 
+      <div className="h-[3px] bg-accent" aria-hidden />
+
       <div className="px-5 pt-5">
         <p className="font-display text-xl font-bold leading-tight">{eventName}</p>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-subtle">

@@ -252,7 +252,7 @@ export default function RegisterPage({ event }: EventPageProps) {
                     <p className="mt-1 text-[0.95rem] text-subtle">
                       {result.reused
                         ? "Vous aviez déjà réservé : c’est le même billet."
-                        : "Présentez ce QR code à l’entrée, sur votre téléphone ou imprimé."}
+                        : "Présentez ce QR code à l’entrée."}
                     </p>
                   </div>
 
@@ -359,7 +359,7 @@ export default function RegisterPage({ event }: EventPageProps) {
               <ul className="space-y-2.5 text-[0.95rem] text-ink/85">
                 <li className="flex gap-3">
                   <Smartphone className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />
-                  Présentez le QR code de votre billet à l’entrée, sur votre téléphone ou imprimé.
+                  Présentez le QR code de votre billet à l’entrée.
                 </li>
                 <li className="flex gap-3">
                   <Ticket className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />

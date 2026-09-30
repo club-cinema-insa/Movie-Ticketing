@@ -17,11 +17,8 @@ export type TicketPDFInput = {
   /** Data URL PNG du QR code. */
   qrCodeDataUrl: string;
   ticketNumber?: number;
-  maxTickets?: number;
   /** Affiche du film (URL absolue, chemin /public ou data URL). Facultatif. */
   posterUrl?: string | null;
-  /** Informations pratiques de la projection. Facultatif. */
-  info?: string | null;
 };
 
 // Géométrie (en points)
@@ -36,10 +33,30 @@ const HERO_MAX = 300;
 const HERO_WITHOUT_POSTER = 150;
 const QR_SIZE = 168;
 
-const INK = "#0f172a";
-const MUTED = "#64748b";
-const LINE = "#cbd5e1";
-const PAGE_BG = "#e2e8f0";
+/** Mélange deux couleurs hex (part `amount` de `from`), comme `color-mix` dans la charte du site. */
+function mix(from: string, to: string, amount: number): string {
+  const parse = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const a = parse(from);
+  const b = parse(to);
+  return `#${a
+    .map((channel, i) =>
+      Math.round(channel * amount + b[i]! * (1 - amount))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+// Mêmes dérivations que les jetons du site (globals.css), à partir du branding.
+const INK = branding.inkColor ?? "#0f172a";
+const CANVAS = branding.canvasColor ?? "#f8fafc";
+const BRAND = branding.primaryColor;
+const BRAND_STRONG = branding.secondaryColor;
+const HIGHLIGHT = branding.highlightColor ?? BRAND;
+const ACCENT = branding.accentColor ?? BRAND;
+const MUTED = mix(INK, CANVAS, 0.7);
+const LINE = mix(INK, CANVAS, 0.13);
+const LINE_STRONG = mix(INK, CANVAS, 0.24);
 
 const FONT_DIR = path.join(process.cwd(), "src", "server", "fonts");
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
@@ -80,16 +97,31 @@ async function loadImage(src: string | null | undefined): Promise<Buffer | null>
   return null;
 }
 
-let fontCache: { regular: Buffer; bold: Buffer } | null = null;
+let fontCache: { regular: Buffer; bold: Buffer; display: Buffer } | null = null;
 
-/** Police Unicode embarquée (Noto Sans, licence OFL) : accents, latin étendu, grec, cyrillique, vietnamien. */
+/**
+ * Polices embarquées (licence OFL) :
+ * - Noto Sans pour le texte : accents, latin étendu, grec, cyrillique, vietnamien ;
+ * - Bricolage Grotesque pour les titres, comme sur le site (latin uniquement : Noto prend le relais sinon).
+ */
 function setupFonts(doc: PDFKit.PDFDocument) {
   fontCache ??= {
     regular: fs.readFileSync(path.join(FONT_DIR, "NotoSans-Regular.ttf")),
     bold: fs.readFileSync(path.join(FONT_DIR, "NotoSans-Bold.ttf")),
+    display: fs.readFileSync(path.join(FONT_DIR, "BricolageGrotesque-ExtraBold.woff")),
   };
   doc.registerFont("Body", fontCache.regular);
   doc.registerFont("BodyBold", fontCache.bold);
+  doc.registerFont("Display", fontCache.display);
+}
+
+/** Police de titre : Bricolage Grotesque si elle sait tout dessiner, sinon Noto Sans gras. */
+function titleFont(doc: PDFKit.PDFDocument, text: string): "Display" | "BodyBold" {
+  doc.font("Display");
+  const embedded = (doc as unknown as {
+    _font: { font: { hasGlyphForCodePoint(codePoint: number): boolean } };
+  })._font.font;
+  return Array.from(text).every((ch) => embedded.hasGlyphForCodePoint(ch.codePointAt(0)!)) ? "Display" : "BodyBold";
 }
 
 /**
@@ -152,7 +184,7 @@ function drawTicket(
   const heroHeight = assets.heroHeight;
 
   // Fond de page
-  doc.rect(0, 0, PAGE_WIDTH, doc.page.height).fill(PAGE_BG);
+  doc.rect(0, 0, PAGE_WIDTH, doc.page.height).fill(CANVAS);
 
   // Carte blanche
   doc.roundedRect(cardX, cardY, CARD_WIDTH, cardHeight, RADIUS).fill("#ffffff");
@@ -170,25 +202,25 @@ function drawTicket(
 
     // Dégradés pour la lisibilité du texte sur l'affiche
     const top = doc.linearGradient(0, cardY, 0, cardY + 90);
-    top.stop(0, "#000000", 0.6).stop(1, "#000000", 0);
+    top.stop(0, INK, 0.62).stop(1, INK, 0);
     doc.rect(cardX, cardY, CARD_WIDTH, 90).fill(top);
 
     const bottomFadeHeight = 150;
     const bottom = doc.linearGradient(0, cardY + heroHeight - bottomFadeHeight, 0, cardY + heroHeight);
-    bottom.stop(0, "#000000", 0).stop(1, "#000000", 0.88);
+    bottom.stop(0, INK, 0).stop(1, INK, 0.9);
     doc.rect(cardX, cardY + heroHeight - bottomFadeHeight, CARD_WIDTH, bottomFadeHeight).fill(bottom);
   } else {
     // Sans affiche : aplat aux couleurs du club, sans voile sombre
-    doc.rect(cardX, cardY, CARD_WIDTH, heroHeight).fill(branding.primaryColor);
+    doc.rect(cardX, cardY, CARD_WIDTH, heroHeight).fill(BRAND_STRONG);
     doc
       .circle(cardX + CARD_WIDTH - 10, cardY + 30, 110)
       .fillOpacity(0.16)
-      .fill(branding.highlightColor ?? "#ffffff");
+      .fill(HIGHLIGHT);
     doc.fillOpacity(1);
   }
 
   // Filet d'accent (orange du logo) sous le bandeau
-  doc.rect(cardX, cardY + heroHeight - 4, CARD_WIDTH, 4).fill(branding.accentColor ?? branding.primaryColor);
+  doc.rect(cardX, cardY + heroHeight - 4, CARD_WIDTH, 4).fill(ACCENT);
   doc.restore();
 
   // Logo du club (carré arrondi, comme dans le fichier d'origine) + nom
@@ -204,8 +236,8 @@ function drawTicket(
   }
   doc
     .fillColor("#ffffff")
-    .font("BodyBold")
-    .fontSize(12)
+    .font(titleFont(doc, branding.appName))
+    .fontSize(13)
     .text(branding.appName, logoX + (assets.clubLogo ? logoSize + 12 : 0), logoY + 14, {
       width: CONTENT_WIDTH - (assets.clubLogo ? logoSize + 12 : 0),
       height: 16,
@@ -219,16 +251,17 @@ function drawTicket(
     { size: 17, maxLines: 3 },
     { size: 15, maxLines: 4 },
   ];
+  const titleFace = titleFont(doc, input.eventName);
   let title = TITLE_STEPS[TITLE_STEPS.length - 1]!;
   for (const step of TITLE_STEPS) {
-    doc.font("BodyBold").fontSize(step.size);
+    doc.font(titleFace).fontSize(step.size);
     const lines = doc.heightOfString(input.eventName, { width: CONTENT_WIDTH }) / doc.currentLineHeight();
     if (lines <= step.maxLines + 0.01) {
       title = step;
       break;
     }
   }
-  doc.font("BodyBold").fontSize(title.size);
+  doc.font(titleFace).fontSize(title.size);
   const titleMax = Math.ceil(doc.currentLineHeight() * title.maxLines) + 2;
   const titleHeight = Math.min(doc.heightOfString(input.eventName, { width: CONTENT_WIDTH }), titleMax);
   doc
@@ -243,7 +276,7 @@ function drawTicket(
   let y = cardY + heroHeight + 22;
   const field = (label: string, value: string, x: number, width: number, maxHeight: number) => {
     doc
-      .fillColor(MUTED)
+      .fillColor(BRAND)
       .font("BodyBold")
       .fontSize(7.5)
       .text(label.toUpperCase(), x, y, { width, characterSpacing: 0.8 });
@@ -278,29 +311,29 @@ function drawTicket(
     .moveTo(cardX + 18, y)
     .lineTo(cardX + CARD_WIDTH - 18, y)
     .lineWidth(1)
-    .stroke(LINE)
+    .stroke(LINE_STRONG)
     .undash();
-  doc.circle(cardX, y, 11).fill(PAGE_BG);
-  doc.circle(cardX + CARD_WIDTH, y, 11).fill(PAGE_BG);
+  doc.circle(cardX, y, 11).fill(CANVAS);
+  doc.circle(cardX + CARD_WIDTH, y, 11).fill(CANVAS);
   y += 24;
 
   // ── QR code ──
   const qrBoxSize = QR_SIZE + 20;
   const qrBoxX = cardX + (CARD_WIDTH - qrBoxSize) / 2;
-  doc.roundedRect(qrBoxX, y, qrBoxSize, qrBoxSize, 12).lineWidth(1.5).stroke(LINE);
+  doc.roundedRect(qrBoxX, y, qrBoxSize, qrBoxSize, 14).lineWidth(1).stroke(LINE);
   doc.image(assets.qr, qrBoxX + 10, y + 10, { width: QR_SIZE, height: QR_SIZE });
   y += qrBoxSize + 16;
 
   doc
     .fillColor(INK)
     .font("Courier-Bold")
-    .fontSize(14)
+    .fontSize(13)
     .text(input.code, cardX + INSET, y, { width: CONTENT_WIDTH, align: "center", characterSpacing: 1 });
   y += 22;
 
   const numberLabel =
     input.ticketNumber !== undefined
-      ? `Billet n°${input.ticketNumber}${input.maxTickets ? ` / ${input.maxTickets}` : ""}`
+      ? `Billet n°${input.ticketNumber}`
       : "";
   doc
     .fillColor(MUTED)
@@ -312,23 +345,21 @@ function drawTicket(
       align: "center",
       ellipsis: true,
     });
-  let contentEnd = y + 14;
-  y += 26;
+  y += 18;
 
-  // ── Informations pratiques (facultatif) ──
-  const info = input.info?.trim();
-  if (info) {
-    doc.font("Body").fontSize(8.5);
-    const infoHeight = Math.min(doc.heightOfString(info, { width: CONTENT_WIDTH - 24 }), 46);
-    doc.roundedRect(cardX + INSET, y, CONTENT_WIDTH, infoHeight + 18, 10).fill("#f1f5f9");
-    doc.fillColor("#475569").text(info, cardX + INSET + 12, y + 9, {
-      width: CONTENT_WIDTH - 24,
-      height: 46,
+  doc
+    .fillColor(MUTED)
+    .font("Body")
+    .fontSize(9.5)
+    .text("Présentez le QR code à l’entrée.", cardX + INSET, y, {
+      width: CONTENT_WIDTH,
       align: "center",
-      ellipsis: true,
+      lineBreak: false,
     });
-    contentEnd = y + infoHeight + 18;
-  }
+  const contentEnd = y + 12;
+
+  // Liseré de la carte, dessiné en dernier pour rester net sur les bords
+  doc.roundedRect(cardX, cardY, CARD_WIDTH, cardHeight, RADIUS).lineWidth(0.75).stroke(LINE);
 
   return contentEnd;
 }
@@ -371,7 +402,6 @@ export async function generateTicketPDF(input: TicketPDFInput): Promise<Buffer> 
     dateLabel: sanitize(input.dateLabel),
     timeLabel: sanitize(input.timeLabel),
     doorsLabel: sanitize(input.doorsLabel) || undefined,
-    info: sanitize(input.info),
   };
 
   const contentBottom = drawTicket(probe, clean, assets, 2300);

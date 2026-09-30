@@ -20,7 +20,6 @@ export type BrandingConfig = {
   canvasColor?: string;
   /** Accroche affichée sous le titre de la page d'accueil. */
   tagline?: string;
-  footerText: string;
   emailSignature: string;
   eventTermsText: string;
   /**
