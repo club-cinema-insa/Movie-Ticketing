@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { Clapperboard, Globe, LogOut, ScanLine, ShieldCheck, type LucideIcon } from "lucide-react";
 import { branding } from "@/config/branding";
 import { SiteHead } from "@/components/layout/SiteHead";
@@ -55,8 +55,19 @@ type AdminLayoutProps = {
   width?: "normal" | "narrow";
 };
 
-/** Gabarit de l'espace bureau : connexion, barre du haut, navigation (en bas sur téléphone). */
-export function AdminLayout({ children, title, width = "normal" }: AdminLayoutProps) {
+/**
+ * Gabarit de l'espace bureau : connexion, barre du haut, navigation (en bas sur téléphone).
+ * La session n'est chargée qu'ici : les pages publiques n'en ont pas besoin.
+ */
+export function AdminLayout(props: AdminLayoutProps) {
+  return (
+    <SessionProvider>
+      <AdminShell {...props} />
+    </SessionProvider>
+  );
+}
+
+function AdminShell({ children, title, width = "normal" }: AdminLayoutProps) {
   const { data: session, status } = useSession();
   const { pathname } = useRouter();
 

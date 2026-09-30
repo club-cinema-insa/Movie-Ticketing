@@ -1,15 +1,14 @@
-import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import "@/styles/globals.css";
 import { branding } from "@/config/branding";
 import { brandThemeCss } from "@/config/branding/theme";
 
-export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
+export default function App({ Component, pageProps }: AppProps) {
   const iconUrl = branding.iconUrl ?? branding.logoUrl;
 
   return (
-    <SessionProvider session={session}>
+    <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>{branding.appName}</title>
@@ -23,6 +22,6 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
         <style>{brandThemeCss(branding)}</style>
       </Head>
       <Component {...pageProps} />
-    </SessionProvider>
+    </>
   );
 }

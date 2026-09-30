@@ -1,144 +1,42 @@
-# 🎟️ Event Ticketing System (ETS)
+# Club Ciné INSA — billetterie
 
-**Event Ticketing System (ETS)** est une application complète de billetterie permettant de **créer, gérer et vérifier des événements et leurs tickets**.  
-Elle inclut la **gestion des organisateurs**, la **génération de tickets avec QR code**, l’**envoi automatique des billets par e-mail**, et une **interface de vérification sécurisée** réservée aux créateurs d’événements.
+Application de réservation gratuite pour les séances du club : les étudiants réservent leur place et reçoivent un billet avec QR code (PDF, e-mail facultatif), le bureau gère les séances et contrôle les billets à l’entrée.
 
----
+## Fonctionnalités
 
-## 🚀 Fonctionnalités principales
+- **Site public** : liste des séances, réservation en quelques secondes, billet PDF téléchargeable, ajout à l’agenda.
+- **Espace bureau** (connexion Discord, réservé aux comptes autorisés) :
+  - création, modification, publication et suppression des séances (préremplies à partir de la dernière) ;
+  - liste des réservations : recherche, validation manuelle, annulation, ajout, export CSV ;
+  - gestion des comptes Discord autorisés (page « Accès »).
+- **Contrôle** : scanner de QR codes par séance, anti double-scan, compteur de présents.
+- **Identité** : couleurs, logo et textes se règlent dans `src/config/branding/` (variable `NEXT_PUBLIC_BRAND`).
 
-- ✅ **Authentification via Discord** (NextAuth + OAuth2)  
-- 🧑‍💼 **Création, modification et suppression d’événements** par les organisateurs  
-- 👥 **Inscription des participants** à un événement  
-- 🎟️ **Génération de tickets uniques** avec code et QR code  
-- ✉️ **Envoi automatique des e-tickets par e-mail** (via Nodemailer)  
-- 📱 **Vérification sécurisée des billets** avec scan QR code (Html5Qrcode)  
-- 🔐 **Protection d’accès** : seules les personnes connectées peuvent accéder aux zones sensibles  
-- 📊 **Statistiques en temps réel** (tickets scannés / émis)  
-- 💾 **Base de données relationnelle Prisma + PostgreSQL**  
-- ⚙️ **API intégrée à Next.js (App Router + Pages)**  
-- 🧱 **Architecture moderne, typée et modulaire (TypeScript)**  
+## Stack
 
----
+Next.js 15 (Pages Router pour les pages, App Router pour l’API d’administration) · React 19 · TypeScript · Tailwind CSS 4 · Prisma + PostgreSQL (Supabase) · NextAuth (Discord) · pdfkit · nodemailer · html5-qrcode.
 
-## 🧰 Stack technique
+## Démarrer en local
 
-| Domaine | Technologie | Description |
-|----------|--------------|--------------|
-| Frontend | **Next.js 15 (React + TypeScript)** | Framework fullstack avec App Router |
-| Authentification | **NextAuth.js (Discord OAuth)** | Gestion sécurisée des sessions utilisateur |
-| ORM | **Prisma** | Accès et gestion des données PostgreSQL |
-| Base de données | **PostgreSQL** | Stockage persistant des utilisateurs, événements et tickets |
-| Emailing | **Nodemailer** | Envoi automatique des tickets PDF aux participants |
-| QR Codes | **html5-qrcode / qrcode** | Génération et lecture des QR codes |
-| Style | **Tailwind CSS** | Design responsive et moderne |
-| Validation | **Zod** | Validation et typage fort des environnements et entrées |
-| Environnement | **@t3-oss/env-nextjs** | Validation stricte des variables d’environnement |
-| Conteneurisation | **Docker (optionnel)** | Déploiement simplifié |
-
----
-
-## 🗂️ Structure du projet
-
-```
-event-ticketing-system/
-│
-├── prisma/                # Schéma et migrations Prisma
-├── src/
-│   ├── app/               # Routes Next.js (App Router)
-│   │   ├── api/           # API routes (NextAuth, admin, etc.)
-│   │   └── page.tsx       # Page principale
-│   ├── pages/             # Pages classiques (admin, verify, etc.)
-│   ├── server/            # Auth, config et logique serveur
-│   ├── trpc/              # Configuration tRPC (API type-safe)
-│   └── components/        # Composants UI réutilisables
-│
-├── public/                # Assets (logos, images)
-├── .env.example           # Exemple de variables d’environnement
-├── next.config.mjs
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
----
-
-## ⚙️ Installation et lancement
-
-### 1️⃣ Cloner le dépôt
-```bash
-git clone https://github.com/<ton-username>/event-ticketing-system.git
-cd event-ticketing-system
-```
-
-### 2️⃣ Installer les dépendances
 ```bash
 npm install
-```
-
-### 3️⃣ Créer ton fichier `.env`
-Copie le modèle :
-```bash
-cp .env.example .env
-```
-
-Puis remplis les valeurs (obligatoires) :
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/ets"
-AUTH_SECRET="clé_secrète_random"
-AUTH_DISCORD_ID="ton_client_id_discord"
-AUTH_DISCORD_SECRET="ton_secret_discord"
-```
-
-### 4️⃣ Mettre à jour la base de données
-```bash
-npx prisma migrate dev
-```
-
-### 5️⃣ Lancer le serveur de développement
-```bash
+cp .env.example .env     # puis renseigner les valeurs
+npx prisma db push       # crée les tables
 npm run dev
 ```
 
-> Application accessible sur [http://localhost:3000](http://localhost:3000)
+Variables obligatoires : `DATABASE_URL`, `AUTH_SECRET`, `AUTH_DISCORD_ID`, `AUTH_DISCORD_SECRET`. Pour amorcer un environnement vide, listez des identifiants Discord dans `INITIAL_ADMIN_DISCORD_IDS`. Les autres variables (partage des séances entre admins, SMTP) sont décrites dans `.env.example`.
 
----
+## Vérifications
 
-## 🔐 Règles d’accès
+```bash
+npm run check   # ESLint + TypeScript (le build échoue aussi en cas d’erreur)
+```
 
-| Page | Accès | Description |
-|------|--------|-------------|
-| `/` | Public | Accueil (liste d’événements ou contenu à venir) |
-| `/admin/events` | 🔒 Authentifié | Gestion complète des événements (CRUD) |
-| `/events/[id]/register` | Public | Inscription à un événement |
-| `/verify` | 🔒 Créateur d’événement | Scanner et vérifier les billets de son propre événement |
+## Déploiement
 
----
+Vercel, région `cdg1` (Paris), branche `main` uniquement (`vercel.json`). `NEXT_PUBLIC_BRAND=clubcine` pour l’identité du club.
 
-## 📊 Statistiques organisateur
+## Licence
 
-- Affiche en temps réel :  
-  > 🎟️ `X billets validés / Y émis` pour chaque événement.  
-- Actualisation automatique après chaque scan validé.
-
----
-
-## 🛠️ Prochaines évolutions
-
-- 💰 Gestion d’événements payants (intégration Stripe)  
-- 🧾 Tableau de bord analytique (stats de participation)  
-- 🗂️ Gestion multi-organisateurs  
-- 📱 Billets Apple/Google Wallet
-
----
-
-## 📜 Licence
-
-Distribué sous licence **MIT**.  
-Voir le fichier [LICENSE](./LICENSE) pour plus d’informations.
-
----
-
-### 💬 À propos
-
-Développé avec ❤️ dans le but de proposer une solution de billetterie **gratuite**, **sécurisée** et **auto-hébergeable** pour tous les organisateurs d’événements.
+MIT, voir [LICENSE](./LICENSE).

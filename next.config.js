@@ -6,19 +6,27 @@ import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
 const config = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
-  images: {
-    domains: ["cdn.discordapp.com", "lh3.googleusercontent.com"],
-  },
-
   reactStrictMode: true,
+  poweredByHeader: false,
+
+  async redirects() {
+    return [{ source: "/", destination: "/events", permanent: false }];
+  },
+
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // La caméra ne sert qu'au scanner du bureau.
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
+  },
 
   // pdfkit lit ses polices (.afm) sur le disque : il doit rester un paquet externe
   // pour que Vercel embarque ses fichiers de données dans la fonction.

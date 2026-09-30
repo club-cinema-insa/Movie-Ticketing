@@ -1,67 +1,54 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
 import { eventAccessWhere } from "@/server/auth/access";
+import { requireAdmin } from "@/server/auth/guards";
+import { createEventSchema, firstIssue } from "@/server/events/schema";
 
+/** GET /api/admin/events : séances accessibles à l'admin connecté, avec réservations et présents. */
 export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
-  }
+  const admin = await requireAdmin();
+  if ("response" in admin) return admin.response;
 
   const events = await db.event.findMany({
-    where: eventAccessWhere(session.user.id),
+    where: eventAccessWhere(admin.userId),
     include: { _count: { select: { tickets: true } } },
     orderBy: { date: "asc" },
   });
 
-  const eventIds = events.map((event) => event.id);
   const checkedInCounts = await db.ticket.groupBy({
     by: ["eventId"],
-    where: { eventId: { in: eventIds }, checkedIn: true },
+    where: { eventId: { in: events.map((event) => event.id) }, checkedIn: true },
     _count: { _all: true },
   });
-
-  const checkedInByEvent = new Map(
-    checkedInCounts.map((entry) => [entry.eventId, entry._count._all]),
-  );
+  const checkedInByEvent = new Map(checkedInCounts.map((entry) => [entry.eventId, entry._count._all]));
 
   return Response.json(
-    events.map((event) => ({
-      ...event,
-      checkedInCount: checkedInByEvent.get(event.id) ?? 0,
-    })),
+    events.map((event) => ({ ...event, checkedInCount: checkedInByEvent.get(event.id) ?? 0 })),
   );
 }
 
+/** POST /api/admin/events : crée une séance (brouillon par défaut). */
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const admin = await requireAdmin();
+  if ("response" in admin) return admin.response;
 
-  if (!session?.user?.id) {
-    return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
+  const parsed = createEventSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return Response.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
+  const { name, date, location, description, image, maxTickets, show } = parsed.data;
 
-  const body = await req.json();
-  const { name, date, location, description, logoUrl, image, maxTickets, show } = body;
-
-  if (!name || !date) {
-    return new Response(JSON.stringify({ error: "Le nom et la date sont requis." }), { status: 400 });
-  }
-
-  const newEvent = await db.event.create({
+  const event = await db.event.create({
     data: {
       name,
-      date: new Date(date),
+      date,
       location,
       description,
-      logoUrl,
       image,
-      maxTickets: maxTickets ? parseInt(maxTickets, 10) : null,
+      maxTickets,
       show: show === true,
-      createdById: session.user.id,
+      createdById: admin.userId,
     },
   });
 
-  return Response.json(newEvent);
+  return Response.json(event);
 }

@@ -1,20 +1,16 @@
 import defaultBranding from "./branding.default";
+import clubcine from "./branding.clubcine";
 import type { BrandingConfig } from "./branding.types";
 
-const brandKey = process.env.NEXT_PUBLIC_BRAND?.trim().toLowerCase();
+/** Une marque par fichier `branding.<nom>.ts` ; on la choisit avec NEXT_PUBLIC_BRAND=<nom>. */
+const brands: Record<string, BrandingConfig> = {
+  default: defaultBranding,
+  clubcine,
+};
 
-let branding: BrandingConfig = defaultBranding;
+const brandKey = process.env.NEXT_PUBLIC_BRAND?.trim().toLowerCase() ?? "default";
 
-if (brandKey && brandKey !== "default") {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const module = require(`./branding.${brandKey}`);
-    const candidate = (module?.default ?? module) as BrandingConfig | undefined;
-    if (candidate) branding = candidate;
-  } catch {
-    // Fallback silencieux vers le branding par défaut.
-  }
-}
+const branding: BrandingConfig = brands[brandKey] ?? defaultBranding;
 
 export { branding };
 export type { BrandingConfig };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import type { Html5Qrcode } from "html5-qrcode";
 import { useSession } from "next-auth/react";
 import {
   Camera,
@@ -350,6 +350,10 @@ function VerifyContent() {
     if (scannerRef.current) return;
     cameraWantedRef.current = true;
     setCameraError("");
+
+    // La bibliothèque de lecture (~110 Ko) n'est chargée qu'au premier démarrage de la caméra.
+    const { Html5Qrcode } = await import("html5-qrcode");
+    if (scannerRef.current || !cameraWantedRef.current) return;
     safeCreateReaderDiv();
 
     const html5QrCode = new Html5Qrcode(READER_ID);

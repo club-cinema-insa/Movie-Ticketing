@@ -7,17 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Post {
-  id          Int      @id @default(autoincrement())
-  name        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id])
-
-  @@index([name])
-}
-
 model Account {
   id                       String  @id @default(cuid())
   userId                   String
@@ -53,7 +42,6 @@ model User {
   image         String?
   discordId     String?   @unique
   accounts      Account[]
-  posts         Post[]
   sessions      Session[]
   events        Event[]
 }
@@ -85,9 +73,9 @@ model Event {
   image       String?
   maxTickets  Int?
   createdById String?
-  createdBy   User?     @relation(fields: [createdById], references: [id])
+  createdBy   User?    @relation(fields: [createdById], references: [id])
   tickets     Ticket[]
-  show        Boolean   @default(false)
+  show        Boolean  @default(false)
 }
 
 model Ticket {
