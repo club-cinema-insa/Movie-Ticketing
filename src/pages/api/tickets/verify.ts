@@ -4,6 +4,22 @@ import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
 import { canAccessEvent } from "@/server/auth/access";
 
+const EVENT_TIME_ZONE = process.env.EVENT_TIME_ZONE ?? "Europe/Paris";
+
+const formatDateTime = (date: Date) =>
+  date.toLocaleString("fr-FR", {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: EVENT_TIME_ZONE,
+  });
+
+/**
+ * POST /api/tickets/verify
+ * Corps : { code: string, eventId?: string }
+ *
+ * `eventId` est la séance contrôlée : un billet d'une autre projection est refusé
+ * sans être validé. `reason` permet à l'interface d'afficher un retour explicite.
+ */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée." });
@@ -15,7 +31,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: "Non autorisé. Veuillez vous connecter." });
   }
 
-  const { code } = req.body;
+  const body = (req.body ?? {}) as { code?: unknown; eventId?: unknown };
+  const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
+  const expectedEventId =
+    typeof body.eventId === "string" && body.eventId ? body.eventId : null;
 
   if (!code) {
     return res.status(400).json({ error: "Code du ticket manquant." });
@@ -34,6 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!ticket) {
       return res.status(404).json({
         valid: false,
+        reason: "not_found",
         message: "Ticket introuvable.",
       });
     }
@@ -42,7 +62,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!canAccessEvent(ticket.event, session.user.id)) {
       return res.status(403).json({
         valid: false,
+        reason: "forbidden",
         message: "⛔ Vous n’êtes pas autorisé à vérifier ce ticket.",
+      });
+    }
+
+    const ticketInfo = {
+      code: ticket.code,
+      number: ticket.number,
+      participant: ticket.participant,
+      event: ticket.event,
+      redeemedAt: ticket.redeemedAt,
+    };
+
+    // Billet d'une autre projection : refusé, non validé.
+    if (expectedEventId && ticket.eventId !== expectedEventId) {
+      return res.status(200).json({
+        valid: false,
+        reason: "wrong_event",
+        message: `⚠️ Ce billet est pour « ${ticket.event.name} » (${formatDateTime(ticket.event.date)}), pas pour cette séance.`,
+        ticket: ticketInfo,
       });
     }
 
@@ -50,13 +89,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (ticket.checkedIn) {
       return res.status(200).json({
         valid: false,
-        message: `🚫 Ticket déjà validé le ${new Date(ticket.redeemedAt!).toLocaleString("fr-FR")}.`,
-        ticket: {
-          code: ticket.code,
-          participant: ticket.participant,
-          event: ticket.event,
-          redeemedAt: ticket.redeemedAt,
-        },
+        reason: "already_used",
+        message: `🚫 Ticket déjà validé le ${formatDateTime(ticket.redeemedAt ?? new Date())}.`,
+        ticket: ticketInfo,
       });
     }
 
@@ -70,29 +105,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (count === 0) {
       const current = await db.ticket.findUnique({ where: { id: ticket.id } });
+      const usedAt = current?.redeemedAt ?? redeemedAt;
       return res.status(200).json({
         valid: false,
-        message: `🚫 Ticket déjà validé le ${new Date(current?.redeemedAt ?? redeemedAt).toLocaleString("fr-FR")}.`,
-        ticket: {
-          code: ticket.code,
-          participant: ticket.participant,
-          event: ticket.event,
-          redeemedAt: current?.redeemedAt ?? null,
-        },
+        reason: "already_used",
+        message: `🚫 Ticket déjà validé le ${formatDateTime(usedAt)}.`,
+        ticket: { ...ticketInfo, redeemedAt: usedAt },
       });
     }
 
-    const updatedTicket = { ...ticket, redeemedAt };
-
     return res.status(200).json({
       valid: true,
-      message: `✅ Ticket valide pour ${updatedTicket.participant.name} (${updatedTicket.event.name}).`,
-      ticket: {
-        code: updatedTicket.code,
-        participant: updatedTicket.participant,
-        event: updatedTicket.event,
-        redeemedAt: updatedTicket.redeemedAt,
-      },
+      reason: "valid",
+      message: `✅ Ticket valide pour ${ticket.participant.name} (${ticket.event.name}).`,
+      ticket: { ...ticketInfo, redeemedAt },
     });
   } catch (error) {
     console.error("Erreur de vérification du ticket :", error);
