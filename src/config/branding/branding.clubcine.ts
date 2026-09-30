@@ -12,8 +12,9 @@ const brandingClubCine: BrandingConfig = {
   secondaryColor: "#115e59",
   footerText: "© 2026 Club Ciné INSA — Projections & culture ciné.",
   emailSignature: "L’équipe du Club Ciné INSA",
-  eventTermsText:
-    "Les projections sont réservées aux étudiants INSA. Merci d’arriver 10 minutes avant le début.",
+  eventTermsText: "Les projections sont réservées aux étudiants INSA.",
+  doorsOpenMinutesBefore: 30,
+  startLabel: "Début de la projection",
 };
 
 export default brandingClubCine;

@@ -8,8 +8,10 @@ export type TicketPDFInput = {
   eventName: string;
   /** Ex. « samedi 15 novembre 2025 » */
   dateLabel: string;
-  /** Ex. « 20:00 » */
+  /** Heure de début, ex. « 20h » */
   timeLabel: string;
+  /** Ouverture des portes, ex. « vers 19h30 ». Absent : la ligne n'est pas affichée. */
+  doorsLabel?: string;
   location: string;
   code: string;
   /** Data URL PNG du QR code. */
@@ -244,12 +246,23 @@ function drawTicket(
     return 12 + h;
   };
 
-  const dateWidth = CONTENT_WIDTH * 0.64;
-  const timeX = cardX + INSET + CONTENT_WIDTH * 0.68;
-  const h1 = field("Date", input.dateLabel, cardX + INSET, dateWidth, 34);
-  const h2 = field("Heure", input.timeLabel, timeX, CONTENT_WIDTH * 0.32, 34);
-  y += Math.max(h1, h2) + 16;
-  const h3 = field("Lieu", input.location, cardX + INSET, CONTENT_WIDTH, 34);
+  const left = cardX + INSET;
+  if (input.doorsLabel) {
+    // Date, puis portes / début côte à côte, puis lieu
+    y += field("Date", input.dateLabel, left, CONTENT_WIDTH, 34) + 16;
+    const half = CONTENT_WIDTH / 2 - 6;
+    const startLabel = branding.startLabel ?? "Début";
+    const hDoors = field("Ouverture des portes", input.doorsLabel, left, half, 34);
+    const hStart = field(startLabel, input.timeLabel, left + half + 12, half, 34);
+    y += Math.max(hDoors, hStart) + 16;
+  } else {
+    const dateWidth = CONTENT_WIDTH * 0.64;
+    const timeX = left + CONTENT_WIDTH * 0.68;
+    const h1 = field("Date", input.dateLabel, left, dateWidth, 34);
+    const h2 = field("Heure", input.timeLabel, timeX, CONTENT_WIDTH * 0.32, 34);
+    y += Math.max(h1, h2) + 16;
+  }
+  const h3 = field("Lieu", input.location, left, CONTENT_WIDTH, 34);
   y += h3 + 22;
 
   // ── Perforation avec encoches ──
@@ -360,6 +373,7 @@ export async function generateTicketPDF(input: TicketPDFInput): Promise<Buffer> 
     location: sanitize(input.location, "Lieu à venir"),
     dateLabel: sanitize(input.dateLabel),
     timeLabel: sanitize(input.timeLabel),
+    doorsLabel: sanitize(input.doorsLabel) || undefined,
     info: sanitize(input.info),
   };
 

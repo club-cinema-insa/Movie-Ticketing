@@ -30,12 +30,24 @@ const formatDate = (date: Date) =>
     timeZone: EVENT_TIME_ZONE,
   });
 
-const formatTime = (date: Date) =>
-  date.toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
+/** « 19h45 », « 20h » : format français, sans « :00 » superflu. */
+const formatTime = (date: Date) => {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    hour: "numeric",
     minute: "2-digit",
+    hourCycle: "h23",
     timeZone: EVENT_TIME_ZONE,
-  });
+  }).formatToParts(date);
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+  return minute === "00" ? `${hour}h` : `${hour}h${minute}`;
+};
+
+/** Ouverture des portes, si le club l'a configurée : « vers 19h30 ». */
+const formatDoors = (date: Date) =>
+  branding.doorsOpenMinutesBefore
+    ? `vers ${formatTime(new Date(date.getTime() - branding.doorsOpenMinutesBefore * 60_000))}`
+    : undefined;
 
 const buildEmailSignature = () =>
   branding.emailSignature
@@ -142,7 +154,12 @@ async function sendTicketEmail(params: {
             ? "Vous aviez déjà une inscription pour cette projection. Voici à nouveau votre billet en pièce jointe."
             : "Merci pour votre inscription. Vous trouverez votre billet en pièce jointe au format PDF."
         }</p>
-        <p>📅 ${escapeHtml(formatDate(event.date))} à ${escapeHtml(formatTime(event.date))}<br />
+        <p>📅 ${escapeHtml(formatDate(event.date))}<br />
+        ${
+          formatDoors(event.date)
+            ? `🚪 Ouverture des portes ${escapeHtml(formatDoors(event.date) ?? "")}<br />🎬 ${escapeHtml(branding.startLabel ?? "Début")} à ${escapeHtml(formatTime(event.date))}<br />`
+            : `🕒 ${escapeHtml(formatTime(event.date))}<br />`
+        }
         📍 ${escapeHtml(event.location ?? "Lieu à venir")}</p>
         ${buildEmailSignature()}
       `,
@@ -223,6 +240,7 @@ export default async function handler(
       eventName: event.name,
       dateLabel: formatDate(event.date),
       timeLabel: formatTime(event.date),
+      doorsLabel: formatDoors(event.date),
       location: event.location ?? "Lieu à venir",
       code: ticket.code,
       qrCodeDataUrl: ticket.qrCode,
