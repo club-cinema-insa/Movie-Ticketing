@@ -1,9 +1,12 @@
-import { randomBytes } from "crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import nodemailer from "nodemailer";
 import type { Event, Participant, Ticket } from "@prisma/client";
 import { db } from "@/server/db";
-import { generateQRCode } from "@/server/utils/ticket";
+import {
+  findOrCreateParticipant,
+  findOrCreateTicket,
+  parseRegistration,
+} from "@/server/tickets/issue";
 import {
   buildTicketPDF,
   formatDate,
@@ -11,10 +14,6 @@ import {
   startAfterDoors,
 } from "@/server/utils/ticketDocument";
 import { branding } from "@/config/branding";
-
-const MAX_NAME_LENGTH = 100;
-const MAX_EMAIL_LENGTH = 254;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const escapeHtml = (value: string) =>
   value
@@ -28,62 +27,6 @@ const buildEmailSignature = () =>
   branding.emailSignature
     ? `<div style="margin-top:24px;font-size:14px;color:#475569;">${escapeHtml(branding.emailSignature)}</div>`
     : "";
-
-/** Code de billet imprévisible : il donne accès à la salle. */
-const generateTicketCode = () =>
-  `TICKET-${randomBytes(6).toString("hex").toUpperCase()}`;
-
-type CreateResult =
-  | { kind: "existing"; ticket: Ticket }
-  | { kind: "created"; ticket: Ticket }
-  | { kind: "hidden" }
-  | { kind: "full" };
-
-/**
- * Crée le billet de façon atomique : un verrou par projection sérialise les
- * inscriptions simultanées, ce qui garantit la capacité maximale, la numérotation
- * et l'unicité d'un billet par participant.
- */
-async function findOrCreateTicket(
-  event: Event,
-  participant: Participant,
-): Promise<CreateResult> {
-  const code = generateTicketCode();
-  const qrCode = await generateQRCode(code);
-
-  return db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${event.id}))`;
-
-    // Un billet existant est toujours renvoyé, même si la projection est complète.
-    const existing = await tx.ticket.findFirst({
-      where: { eventId: event.id, participantId: participant.id },
-      orderBy: { createdAt: "asc" },
-    });
-    if (existing) return { kind: "existing", ticket: existing };
-
-    // Pas de nouvelle inscription sur une projection non publiée.
-    if (!event.show) return { kind: "hidden" };
-
-    const issued = await tx.ticket.count({ where: { eventId: event.id } });
-    if (event.maxTickets && issued >= event.maxTickets) return { kind: "full" };
-
-    const last = await tx.ticket.aggregate({
-      where: { eventId: event.id },
-      _max: { number: true },
-    });
-
-    const ticket = await tx.ticket.create({
-      data: {
-        code,
-        number: (last._max.number ?? 0) + 1,
-        qrCode,
-        eventId: event.id,
-        participantId: participant.id,
-      },
-    });
-    return { kind: "created", ticket };
-  });
-}
 
 /** Envoie le billet par email. Ne lève jamais d'exception : une panne SMTP n'annule pas la réservation. */
 async function sendTicketEmail(params: {
@@ -161,19 +104,13 @@ export default async function handler(
   }
 
   const { id: eventId } = req.query;
-  const body = (req.body ?? {}) as { name?: unknown; email?: unknown };
+  const parsed = parseRegistration((req.body ?? {}) as { name?: unknown; email?: unknown });
 
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-
-  if (!eventId || typeof eventId !== "string" || !name || !email) {
+  if (!eventId || typeof eventId !== "string") {
     return res.status(400).json({ error: "Données manquantes." });
   }
-  if (name.length > MAX_NAME_LENGTH) {
-    return res.status(400).json({ error: "Le nom est trop long." });
-  }
-  if (email.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(email)) {
-    return res.status(400).json({ error: "Adresse email invalide." });
+  if (!parsed.ok) {
+    return res.status(400).json({ error: parsed.error });
   }
 
   try {
@@ -182,21 +119,7 @@ export default async function handler(
       return res.status(404).json({ error: "Événement introuvable." });
     }
 
-    // Participant identifié par son email, sans tenir compte de la casse.
-    let participant = await db.participant.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-    });
-    if (!participant) {
-      try {
-        participant = await db.participant.create({ data: { name, email } });
-      } catch {
-        // Inscription simultanée avec le même email : on récupère le participant créé entre-temps.
-        participant = await db.participant.findFirst({
-          where: { email: { equals: email, mode: "insensitive" } },
-        });
-        if (!participant) throw new Error("Impossible de créer le participant.");
-      }
-    }
+    const participant = await findOrCreateParticipant(parsed.name, parsed.email);
 
     const result = await findOrCreateTicket(event, participant);
 

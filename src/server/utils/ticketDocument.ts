@@ -61,7 +61,7 @@ export function buildTicketPDF(params: {
 export function ticketFileName(eventName: string): string {
   const slug = eventName
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 60);

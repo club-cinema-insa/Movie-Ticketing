@@ -166,6 +166,9 @@ export default function VerifyTicketPage() {
 
       setSelectedId((current) => {
         if (current && options.some((event) => event.id === current)) return current;
+        // Lien direct depuis la liste des inscrits : /verify?event=<id>
+        const requested = new URLSearchParams(window.location.search).get("event");
+        if (requested && options.some((event) => event.id === requested)) return requested;
         let stored: string | null = null;
         try {
           stored = window.localStorage.getItem(STORAGE_KEY);

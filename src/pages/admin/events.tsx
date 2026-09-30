@@ -153,6 +153,12 @@ export default function AdminEventsPage() {
                   </div>
                   <div className="flex gap-2">
                     <Link
+                      href={`/admin/events/${event.id}/participants`}
+                      className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Inscrits
+                    </Link>
+                    <Link
                       href={`/admin/events/${event.id}/edit`}
                       className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
                     >
@@ -221,6 +227,13 @@ export default function AdminEventsPage() {
                 >
                   {(event.show ?? false) ? "Masquer" : "Afficher"}
                 </button>
+
+                <Link
+                  href={`/admin/events/${event.id}/participants`}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  Inscrits
+                </Link>
 
                 <Link
                   href={`/admin/events/${event.id}/edit`}
