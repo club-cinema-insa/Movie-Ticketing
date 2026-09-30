@@ -1,4 +1,4 @@
-import type { BrandingConfig } from "../../../../Event-Ticketing-System/src/config/branding/branding.types";
+import type { BrandingConfig } from "./branding.types";
 
 // Exemple de branding pour un fork étudiant (actif si NEXT_PUBLIC_BRAND=clubcine).
 // Placez vos assets dans /public (ex: /public/clubcine-logo.png).
