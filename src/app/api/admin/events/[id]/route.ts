@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
+import { canAccessEvent } from "@/server/auth/access";
 
 type UpdateBody = {
   name?: string;
@@ -41,7 +42,7 @@ export async function GET(_req: Request, context: ParamsContext) {
     return Response.json({ error: "Événement introuvable" }, { status: 404 });
   }
 
-  if (event.createdById !== session.user.id) {
+  if (!canAccessEvent(event, session.user.id)) {
     return Response.json({ error: "Accès refusé" }, { status: 403 });
   }
 
@@ -74,7 +75,7 @@ export async function PUT(req: Request, context: ParamsContext) {
   if (!event) {
     return Response.json({ error: "Événement introuvable" }, { status: 404 });
   }
-  if (event.createdById !== session.user.id) {
+  if (!canAccessEvent(event, session.user.id)) {
     return Response.json({ error: "Accès refusé" }, { status: 403 });
   }
 
@@ -138,7 +139,7 @@ export async function DELETE(
     );
   }
 
-  if (event.createdById !== session.user.id) {
+  if (!canAccessEvent(event, session.user.id)) {
     return Response.json({ error: "Accès refusé" }, { status: 403 });
   }
 

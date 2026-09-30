@@ -14,6 +14,11 @@ export const env = createEnv({
     AUTH_DISCORD_ID: z.string(),
     AUTH_DISCORD_SECRET: z.string(),
     DATABASE_URL: z.string().url(),
+    // Discord IDs (séparés par des virgules) autorisés à se connecter tant que la
+    // table User est vide ou pour amorcer une nouvelle installation.
+    INITIAL_ADMIN_DISCORD_IDS: z.string().optional(),
+    // "true" : tous les admins autorisés voient, modifient et contrôlent tous les événements.
+    ADMIN_SHARED_EVENTS: z.enum(["true", "false"]).optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -37,6 +42,8 @@ export const env = createEnv({
     AUTH_DISCORD_ID: process.env.AUTH_DISCORD_ID,
     AUTH_DISCORD_SECRET: process.env.AUTH_DISCORD_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
+    INITIAL_ADMIN_DISCORD_IDS: process.env.INITIAL_ADMIN_DISCORD_IDS,
+    ADMIN_SHARED_EVENTS: process.env.ADMIN_SHARED_EVENTS,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**
