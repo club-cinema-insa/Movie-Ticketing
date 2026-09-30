@@ -9,6 +9,7 @@ Application de réservation gratuite pour les séances du club : les étudiants 
   - création, modification, publication et suppression des séances (préremplies à partir de la dernière) ;
   - liste des réservations : recherche, validation manuelle, annulation, ajout, export CSV ;
   - gestion des comptes Discord autorisés (page « Accès »).
+- **Annulation par l’étudiant** : lien dans l’e-mail (et sur la page de confirmation) vers `/billet/<code>`, valable jusqu’à l’ouverture des portes.
 - **Contrôle** : scanner de QR codes par séance, anti double-scan, compteur de présents.
 - **Identité** : couleurs, logo et textes se règlent dans `src/config/branding/` (variable `NEXT_PUBLIC_BRAND`).
 

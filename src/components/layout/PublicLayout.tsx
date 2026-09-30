@@ -25,13 +25,14 @@ type PublicLayoutProps = {
   title?: string;
   description?: string;
   image?: string | null;
+  noindex?: boolean;
 };
 
 /** Gabarit du site public : en-tête collant, contenu, pied de page. */
-export function PublicLayout({ children, title, description, image }: PublicLayoutProps) {
+export function PublicLayout({ children, title, description, image, noindex }: PublicLayoutProps) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <SiteHead title={title} description={description} image={image} />
+      <SiteHead title={title} description={description} image={image} noindex={noindex} />
 
       <header className="sticky top-0 z-30 border-b border-line/70 bg-canvas/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">

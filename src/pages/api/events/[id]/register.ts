@@ -8,6 +8,7 @@ import {
   parseRegistration,
 } from "@/server/tickets/issue";
 import { buildTicketPDF } from "@/server/utils/ticketDocument";
+import { manageTicketPath } from "@/server/tickets/cancel";
 import { buildTicketEmail } from "@/server/utils/ticketEmail";
 import { branding } from "@/config/branding";
 
@@ -121,6 +122,8 @@ export default async function handler(
       },
       // Le PDF est généré à la demande (l'inscription ne le renvoie plus).
       pdfUrl: `/api/tickets/${ticket.code}/pdf`,
+      // Page du billet avec le droit d'annuler (le lien figure aussi dans l'e-mail).
+      manageUrl: manageTicketPath(ticket.code),
     });
   } catch (error) {
     console.error("Erreur lors de la création ou de la récupération du billet :", error);

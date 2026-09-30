@@ -1,6 +1,8 @@
 import type { Event, Participant, Ticket } from "@prisma/client";
 import { branding } from "@/config/branding";
 import { formatDate, formatTime, startAfterDoors } from "@/server/utils/ticketDocument";
+import { siteUrl } from "@/server/utils/siteUrl";
+import { manageTicketPath } from "@/server/tickets/cancel";
 
 const escapeHtml = (value: string) =>
   value
@@ -9,14 +11,6 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-
-/** Adresse publique du site (liens et logo dans l'e-mail). Facultative : sans elle, pas de bouton. */
-function siteUrl(): string | null {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL;
-  if (explicit) return explicit.replace(/\/$/, "");
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  return vercel ? `https://${vercel}` : null;
-}
 
 type Row = { label: string; value: string };
 
@@ -53,6 +47,7 @@ export function buildTicketEmail(params: {
 
   const base = siteUrl();
   const pdfLink = base ? `${base}/api/tickets/${ticket.code}/pdf` : null;
+  const manageLink = base ? `${base}${manageTicketPath(ticket.code)}` : null;
   const logo = base ? `${base}${branding.logoUrl}` : null;
   const rows = scheduleRows(event);
 
@@ -61,6 +56,7 @@ export function buildTicketEmail(params: {
     ? "Vous aviez déjà réservé votre place pour cette séance. Votre billet est de nouveau joint à ce message."
     : "Votre place est réservée. Votre billet est joint à ce message, au format PDF.";
   const advice = "Présentez le QR code à l’entrée, sur votre téléphone ou imprimé.";
+  const cancelAdvice = "Un empêchement ? Libérez votre place pour un autre étudiant en annulant votre réservation (possible jusqu’à l’ouverture des portes).";
 
   const rowsHtml = rows
     .map(
@@ -116,6 +112,15 @@ export function buildTicketEmail(params: {
                 <p style="margin:0;font-size:14px;line-height:1.5;color:${muted};">${escapeHtml(advice)}</p>
               </td>
             </tr>
+            ${
+              manageLink
+                ? `<tr>
+              <td style="padding:8px 24px 8px 24px;">
+                <p style="margin:0;font-size:14px;line-height:1.5;color:${muted};">${escapeHtml(cancelAdvice)} <a href="${escapeHtml(manageLink)}" style="color:${brand};font-weight:600;">Annuler ma réservation</a></p>
+              </td>
+            </tr>`
+                : ""
+            }
             <tr>
               <td style="padding:16px 24px 28px 24px;">
                 <p style="margin:0;font-size:14px;color:${ink};">${escapeHtml(branding.emailSignature)}</p>
@@ -140,6 +145,7 @@ export function buildTicketEmail(params: {
     "",
     ...(pdfLink ? [`Télécharger mon billet : ${pdfLink}`, ""] : []),
     advice,
+    ...(manageLink ? ["", cancelAdvice, `Annuler ma réservation : ${manageLink}`] : []),
     "",
     branding.emailSignature,
   ].join("\n");
