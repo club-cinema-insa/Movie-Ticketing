@@ -120,7 +120,8 @@ async function sendTicketEmail(params: {
 
     const eventName = escapeHtml(event.name);
     await transporter.sendMail({
-      from: `"${branding.appShortName}" <${process.env.SMTP_USER}>`,
+      // SMTP_FROM : adresse d'expéditeur, distincte de l'identifiant SMTP chez la plupart des services.
+      from: `"${branding.appShortName}" <${process.env.SMTP_FROM ?? process.env.SMTP_USER}>`,
       to: participant.email,
       subject: `🎟️ Votre billet pour ${event.name}`,
       html: `

@@ -1,6 +1,8 @@
 // src/pages/admin/events/[id]/edit.tsx
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import { branding } from "@/config/branding";
+import { startTimeLabel } from "@/lib/eventTime";
 
 type EventResponse = {
   id: string;
@@ -211,7 +213,9 @@ export default function EditEventPage() {
             />
           </div>
           <div className="flex-1">
-            <label className="block mb-1 font-medium">Heure</label>
+            <label className="block mb-1 font-medium">
+              {branding.startsAfterDoorsMinutes ? "Heure d’ouverture des portes" : "Heure"}
+            </label>
             <input
               type="time"
               value={formData.time}
@@ -220,6 +224,12 @@ export default function EditEventPage() {
               }
               className="w-full border rounded px-3 py-2"
             />
+            {branding.startsAfterDoorsMinutes && formData.time && (
+              <p className="mt-1 text-xs text-gray-500">
+                {branding.startLabel ?? "Début"} :{" "}
+                {startTimeLabel(formData.time, branding.startsAfterDoorsMinutes)}
+              </p>
+            )}
           </div>
         </div>
 
@@ -263,33 +273,10 @@ export default function EditEventPage() {
           ></textarea>
         </div>
 
-        {/* Logo */}
-        <div>
-          <label className="block mb-1 font-medium">
-            Logo de l’événement (URL)
-          </label>
-          <input
-            type="url"
-            value={formData.logoUrl}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, logoUrl: e.target.value }))
-            }
-            className="w-full border rounded px-3 py-2"
-          />
-          {formData.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={formData.logoUrl}
-              alt="Logo aperçu"
-              className="w-24 h-24 object-contain mt-2 border rounded"
-            />
-          )}
-        </div>
-
         {/* Image principale */}
         <div>
           <label className="block mb-1 font-medium">
-            Image principale (URL)
+            Affiche du film (URL d’une image PNG ou JPEG)
           </label>
           <input
             type="url"

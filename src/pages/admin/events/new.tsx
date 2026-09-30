@@ -1,5 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { branding } from "@/config/branding";
+import { localDateTimeParts, nextSameWeekday, startTimeLabel } from "@/lib/eventTime";
+
+type TemplateEvent = {
+  name: string;
+  date: string;
+  location?: string | null;
+  maxTickets?: number | null;
+};
 
 type FormState = {
   name: string;
@@ -40,6 +49,52 @@ export default function NewEventPage() {
     image: "",
     maxTickets: "",
   });
+
+  // Projection prise comme modèle : les séances du club se répètent, seul le film change.
+  const [template, setTemplate] = useState<TemplateEvent | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDefaults = async () => {
+      try {
+        const res = await fetch("/api/admin/events");
+        if (!res.ok) return;
+        const events = (await res.json()) as TemplateEvent[];
+        const latest = events.reduce<TemplateEvent | null>(
+          (best, event) =>
+            !best || new Date(event.date) > new Date(best.date) ? event : best,
+          null,
+        );
+        if (!latest || cancelled) return;
+
+        const parts = localDateTimeParts(latest.date);
+        if (!parts) return;
+        const suggested = localDateTimeParts(nextSameWeekday(new Date(latest.date)).toISOString());
+
+        // On ne remplace que les champs que l'utilisateur n'a pas déjà remplis.
+        setFormData((f) => ({
+          ...f,
+          date: f.date || suggested?.date || "",
+          time: f.time || parts.time,
+          location: f.location || latest.location || "",
+          maxTickets: f.maxTickets || (latest.maxTickets ? String(latest.maxTickets) : ""),
+        }));
+        setTemplate(latest);
+      } catch {
+        // Le préremplissage est facultatif.
+      }
+    };
+
+    void loadDefaults();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const doorsMinutes = branding.startsAfterDoorsMinutes;
+  const startLabel =
+    doorsMinutes && formData.time ? startTimeLabel(formData.time, doorsMinutes) : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +137,13 @@ export default function NewEventPage() {
         ➕ Créer un nouvel événement
       </h1>
 
+      {template && (
+        <p className="mb-4 rounded bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          Date, heure, lieu et nombre de places sont préremplis d’après la dernière
+          projection (« {template.name} »). Il ne reste qu’à saisir le film.
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Nom */}
         <div>
@@ -110,7 +172,9 @@ export default function NewEventPage() {
             />
           </div>
           <div className="flex-1">
-            <label className="block mb-1 font-medium">Heure</label>
+            <label className="block mb-1 font-medium">
+              {doorsMinutes ? "Heure d’ouverture des portes" : "Heure"}
+            </label>
             <input
               type="time"
               value={formData.time}
@@ -119,6 +183,11 @@ export default function NewEventPage() {
               }
               className="w-full border rounded px-3 py-2"
             />
+            {startLabel && (
+              <p className="mt-1 text-xs text-gray-500">
+                {branding.startLabel ?? "Début"} : {startLabel}
+              </p>
+            )}
           </div>
         </div>
 
@@ -162,33 +231,10 @@ export default function NewEventPage() {
           ></textarea>
         </div>
 
-        {/* Logo */}
-        <div>
-          <label className="block mb-1 font-medium">
-            Logo de l’événement (URL)
-          </label>
-          <input
-            type="url"
-            value={formData.logoUrl}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, logoUrl: e.target.value }))
-            }
-            className="w-full border rounded px-3 py-2"
-          />
-          {formData.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={formData.logoUrl}
-              alt="Logo aperçu"
-              className="w-24 h-24 object-contain mt-2 border rounded"
-            />
-          )}
-        </div>
-
         {/* Image principale */}
         <div>
           <label className="block mb-1 font-medium">
-            Image principale (URL)
+            Affiche du film (URL d’une image PNG ou JPEG)
           </label>
           <input
             type="url"
