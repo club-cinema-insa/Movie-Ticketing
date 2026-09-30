@@ -60,18 +60,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Marque le ticket comme validé
-    const updatedTicket = await db.ticket.update({
-      where: { id: ticket.id },
-      data: {
-        checkedIn: true,
-        redeemedAt: new Date(),
-      },
-      include: {
-        participant: true,
-        event: true,
-      },
+    // Marque le ticket comme validé de façon atomique : deux scans simultanés
+    // ne peuvent pas valider le même billet.
+    const redeemedAt = new Date();
+    const { count } = await db.ticket.updateMany({
+      where: { id: ticket.id, checkedIn: false },
+      data: { checkedIn: true, redeemedAt },
     });
+
+    if (count === 0) {
+      const current = await db.ticket.findUnique({ where: { id: ticket.id } });
+      return res.status(200).json({
+        valid: false,
+        message: `🚫 Ticket déjà validé le ${new Date(current?.redeemedAt ?? redeemedAt).toLocaleString("fr-FR")}.`,
+        ticket: {
+          code: ticket.code,
+          participant: ticket.participant,
+          event: ticket.event,
+          redeemedAt: current?.redeemedAt ?? null,
+        },
+      });
+    }
+
+    const updatedTicket = { ...ticket, redeemedAt };
 
     return res.status(200).json({
       valid: true,

@@ -102,4 +102,6 @@ model Ticket {
   checkedIn     Boolean     @default(false)
   event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   participant   Participant @relation(fields: [participantId], references: [id])
+
+  @@unique([eventId, participantId])
 }

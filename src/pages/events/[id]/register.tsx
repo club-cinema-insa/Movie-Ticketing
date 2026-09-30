@@ -265,11 +265,19 @@ export default function RegisterPage({ event }: EventPageProps) {
                   </p>
                 )}
 
-                <p className="text-xs text-slate-600">
-                  Un e-mail a été envoyé à{" "}
-                  <strong>{ticketData.ticket.participantEmail}</strong> avec
-                  votre billet en pièce jointe.
-                </p>
+                {ticketData.emailSent ? (
+                  <p className="text-xs text-slate-600">
+                    Un e-mail a été envoyé à{" "}
+                    <strong>{ticketData.ticket.participantEmail}</strong> avec
+                    votre billet en pièce jointe.
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    L’e-mail n’a pas pu être envoyé : téléchargez votre billet
+                    ci-dessous et conservez-le. Vous pouvez aussi vous
+                    réinscrire avec la même adresse pour le récupérer.
+                  </p>
+                )}
 
                 <button
                   onClick={handleDownload}
@@ -299,10 +307,6 @@ export default function RegisterPage({ event }: EventPageProps) {
                   📍 Lieu : <span className="font-medium">{event.location}</span>
                 </li>
               )}
-              <li>
-                🧾 Un e-mail de confirmation avec votre ticket vous est envoyé
-                automatiquement après l’inscription.
-              </li>
               {branding.eventTermsText && (
                 <li>📌 {branding.eventTermsText}</li>
               )}
