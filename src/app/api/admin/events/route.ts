@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
+import { eventAccessWhere } from "@/server/auth/access";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,7 +11,7 @@ export async function GET() {
   }
 
   const events = await db.event.findMany({
-    where: { createdById: session.user.id },
+    where: eventAccessWhere(session.user.id),
     include: { _count: { select: { tickets: true } } },
     orderBy: { date: "asc" },
   });

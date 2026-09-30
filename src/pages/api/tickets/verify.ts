@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
+import { canAccessEvent } from "@/server/auth/access";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -37,8 +38,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Vérifie que l'utilisateur connecté est bien le créateur de l'événement
-    if (ticket.event.createdById !== session.user.id) {
+    // Vérifie que l'utilisateur connecté peut gérer cet événement (créateur, ou tous les admins si le partage est activé)
+    if (!canAccessEvent(ticket.event, session.user.id)) {
       return res.status(403).json({
         valid: false,
         message: "⛔ Vous n’êtes pas autorisé à vérifier ce ticket.",

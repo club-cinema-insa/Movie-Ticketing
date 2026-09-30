@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
+import { eventAccessWhere } from "@/server/auth/access";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -17,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Récupère le dernier événement créé par l’utilisateur connecté
     const event = await db.event.findFirst({
-      where: { createdById: session.user.id },
+      where: eventAccessWhere(session.user.id),
       orderBy: { date: "desc" },
       include: {
         _count: { select: { tickets: true } },
