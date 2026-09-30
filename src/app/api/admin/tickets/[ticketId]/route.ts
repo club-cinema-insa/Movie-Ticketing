@@ -4,7 +4,7 @@ import { loadTicketForAdmin } from "@/server/auth/guards";
 type Context = { params: Promise<{ ticketId: string }> };
 
 /**
- * ✏️ PATCH /api/admin/tickets/[ticketId]
+ * PATCH /api/admin/tickets/[ticketId]
  * Corps : { checkedIn: boolean } — validation manuelle (QR perdu) ou annulation d'une validation.
  */
 export async function PATCH(req: Request, context: Context) {
@@ -34,7 +34,7 @@ export async function PATCH(req: Request, context: Context) {
 }
 
 /**
- * 🗑️ DELETE /api/admin/tickets/[ticketId]
+ * DELETE /api/admin/tickets/[ticketId]
  * Annule la réservation : la place est libérée et le QR code n'est plus valable.
  */
 export async function DELETE(_req: Request, context: Context) {

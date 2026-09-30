@@ -167,21 +167,28 @@ function drawTicket(
       align: "center",
       valign: "center",
     });
+
+    // Dégradés pour la lisibilité du texte sur l'affiche
+    const top = doc.linearGradient(0, cardY, 0, cardY + 90);
+    top.stop(0, "#000000", 0.6).stop(1, "#000000", 0);
+    doc.rect(cardX, cardY, CARD_WIDTH, 90).fill(top);
+
+    const bottomFadeHeight = 150;
+    const bottom = doc.linearGradient(0, cardY + heroHeight - bottomFadeHeight, 0, cardY + heroHeight);
+    bottom.stop(0, "#000000", 0).stop(1, "#000000", 0.88);
+    doc.rect(cardX, cardY + heroHeight - bottomFadeHeight, CARD_WIDTH, bottomFadeHeight).fill(bottom);
   } else {
+    // Sans affiche : aplat aux couleurs du club, sans voile sombre
     doc.rect(cardX, cardY, CARD_WIDTH, heroHeight).fill(branding.primaryColor);
-    doc.circle(cardX + CARD_WIDTH - 20, cardY + 10, 90).fillOpacity(0.10).fill("#ffffff");
+    doc
+      .circle(cardX + CARD_WIDTH - 10, cardY + 30, 110)
+      .fillOpacity(0.16)
+      .fill(branding.highlightColor ?? "#ffffff");
     doc.fillOpacity(1);
   }
 
-  // Dégradés pour la lisibilité du texte sur l'affiche
-  const top = doc.linearGradient(0, cardY, 0, cardY + 90);
-  top.stop(0, "#000000", 0.6).stop(1, "#000000", 0);
-  doc.rect(cardX, cardY, CARD_WIDTH, 90).fill(top);
-
-  const bottomFadeHeight = 150;
-  const bottom = doc.linearGradient(0, cardY + heroHeight - bottomFadeHeight, 0, cardY + heroHeight);
-  bottom.stop(0, "#000000", 0).stop(1, "#000000", 0.88);
-  doc.rect(cardX, cardY + heroHeight - bottomFadeHeight, CARD_WIDTH, bottomFadeHeight).fill(bottom);
+  // Filet d'accent (orange du logo) sous le bandeau
+  doc.rect(cardX, cardY + heroHeight - 4, CARD_WIDTH, 4).fill(branding.accentColor ?? branding.primaryColor);
   doc.restore();
 
   // Logo du club (carré arrondi, comme dans le fichier d'origine) + nom

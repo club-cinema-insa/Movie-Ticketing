@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader("X-Robots-Tag", "noindex");
     return res.status(200).send(pdf);
   } catch (error) {
-    console.error("❌ Erreur lors de la génération du PDF :", error);
+    console.error("Erreur lors de la génération du PDF :", error);
     return res.status(500).json({ error: "Erreur serveur." });
   }
 }

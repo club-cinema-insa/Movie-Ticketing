@@ -1,8 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { useSession, signIn, signOut } from "next-auth/react";
-import Link from "next/link";
-import { branding } from "@/config/branding";
+import { useSession } from "next-auth/react";
+import {
+  Camera,
+  Check,
+  CircleHelp,
+  QrCode,
+  Search,
+  Square,
+  TriangleAlert,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { AdminLayout } from "@/components/layout/AdminLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, Input, Select } from "@/components/ui/field";
+import { formatDayTimeShort } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type EventOption = {
   id: string;
@@ -57,33 +74,24 @@ const POLL_INTERVAL_MS = 10000;
 const STORAGE_KEY = "verify:eventId";
 const MAX_HISTORY = 30;
 
-const FLASH_STYLES: Record<FlashKind, { bg: string; badge: string; icon: string }> = {
-  valid: { bg: "bg-green-600", badge: "text-green-600", icon: "✓" },
-  used: { bg: "bg-red-600", badge: "text-red-600", icon: "✕" },
-  wrong: { bg: "bg-amber-500", badge: "text-amber-600", icon: "!" },
-  unknown: { bg: "bg-red-600", badge: "text-red-600", icon: "?" },
-  error: { bg: "bg-gray-700", badge: "text-gray-700", icon: "!" },
+const FLASH_STYLES: Record<FlashKind, { bg: string; text: string; badge: string; icon: LucideIcon }> = {
+  valid: { bg: "bg-success", text: "text-white", badge: "text-success", icon: Check },
+  used: { bg: "bg-danger", text: "text-white", badge: "text-danger", icon: X },
+  wrong: { bg: "bg-accent", text: "text-ink", badge: "text-accent-strong", icon: TriangleAlert },
+  unknown: { bg: "bg-danger", text: "text-white", badge: "text-danger", icon: CircleHelp },
+  error: { bg: "bg-ink", text: "text-white", badge: "text-ink", icon: TriangleAlert },
 };
 
 const HISTORY_STYLES: Record<FlashKind, string> = {
-  valid: "border-green-300 bg-green-50 text-green-800",
-  used: "border-red-300 bg-red-50 text-red-800",
-  wrong: "border-amber-300 bg-amber-50 text-amber-800",
-  unknown: "border-red-300 bg-red-50 text-red-800",
-  error: "border-gray-300 bg-gray-50 text-gray-700",
+  valid: "bg-success-soft text-success",
+  used: "bg-danger-soft text-danger",
+  wrong: "bg-accent-soft text-[#7a4300]",
+  unknown: "bg-danger-soft text-danger",
+  error: "bg-muted text-subtle",
 };
 
 const formatTime = (value: Date) =>
   value.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
-const formatEventDate = (iso: string) =>
-  new Date(iso).toLocaleString("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
 /** Séance la plus proche de maintenant : c'est presque toujours celle à contrôler. */
 const pickDefaultEvent = (events: EventOption[]): string | null => {
@@ -120,8 +128,8 @@ function beep(ok: boolean) {
   }
 }
 
-export default function VerifyTicketPage() {
-  const { data: session, status } = useSession();
+function VerifyContent() {
+  const { status } = useSession();
 
   const [events, setEvents] = useState<EventOption[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -208,8 +216,7 @@ export default function VerifyTicketPage() {
     if (old?.parentNode) old.parentNode.removeChild(old);
     const div = document.createElement("div");
     div.id = READER_ID;
-    div.className =
-      "w-full aspect-square max-w-sm rounded-2xl border bg-gray-100 shadow-inner overflow-hidden";
+    div.className = "size-full";
     document.getElementById("scanner-container")?.appendChild(div);
   };
 
@@ -292,7 +299,7 @@ export default function VerifyTicketPage() {
               kind: "wrong",
               title: "AUTRE SÉANCE",
               detail: data.ticket?.event?.name ?? "",
-              sub: name ? `Billet de ${name}` : undefined,
+              sub: name ? `Billet ${/^[aeiouyàâäéèêëîïôöùûüh]/i.test(name) ? "d’" : "de "}${name}` : undefined,
             };
             break;
           case "not_found":
@@ -314,7 +321,7 @@ export default function VerifyTicketPage() {
           );
         }
       } catch (error) {
-        console.error("Erreur vérification ticket :", error);
+        console.error("Erreur de vérification du billet :", error);
         flashData = { kind: "error", title: "ERREUR RÉSEAU", detail: "Réessayez : le billet n'a pas été vérifié." };
         // Autorise un nouvel essai immédiat du même code.
         lastScanRef.current = { code: "", time: 0 };
@@ -401,172 +408,177 @@ export default function VerifyTicketPage() {
     setManualCode("");
   };
 
-  // ── Accès ──
-  if (status === "loading") return <p className="mt-10 text-center">Chargement...</p>;
-
-  if (!session)
-    return (
-      <div className="mt-20 text-center">
-        <h1 className="mb-4 text-2xl font-semibold">🔒 Accès restreint</h1>
-        <p className="mb-4 text-gray-600">Vous devez être connecté.</p>
-        <button
-          onClick={() => signIn("discord")}
-          className="rounded bg-[var(--brand-primary)] px-4 py-2 text-white hover:bg-[var(--brand-secondary)]"
-        >
-          Se connecter avec Discord
-        </button>
-      </div>
-    );
-
   const progress = selected && selected.issued > 0 ? Math.min(100, (selected.checkedIn / selected.issued) * 100) : 0;
+  const flashStyle = flash ? FLASH_STYLES[flash.kind] : null;
+  const FlashIcon = flashStyle?.icon;
 
   return (
-    <div className="min-h-screen bg-slate-100 pb-16">
+    <>
       {/* Retour plein écran après chaque vérification */}
-      {flash && (
+      {flash && flashStyle && FlashIcon && (
         <button
           type="button"
           onClick={() => setFlash(null)}
-          className={`fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 px-6 text-center text-white ${FLASH_STYLES[flash.kind].bg}`}
+          aria-live="assertive"
+          className={cn(
+            "fixed inset-0 z-[70] flex flex-col items-center justify-center gap-4 px-6 text-center",
+            flashStyle.bg,
+            flashStyle.text,
+          )}
         >
-          <span
-            className={`flex h-32 w-32 items-center justify-center rounded-full bg-white text-8xl font-black leading-none ${FLASH_STYLES[flash.kind].badge}`}
-          >
-            {FLASH_STYLES[flash.kind].icon}
+          <span className={cn("flex size-36 items-center justify-center rounded-full bg-white shadow-pop", flashStyle.badge)}>
+            <FlashIcon className="size-20" strokeWidth={3} aria-hidden />
           </span>
-          <span className="text-4xl font-extrabold tracking-wide">{flash.title}</span>
-          {flash.detail && <span className="break-words text-2xl font-semibold">{flash.detail}</span>}
+          <span className="font-display text-4xl font-extrabold tracking-wide">{flash.title}</span>
+          {flash.detail && <span className="max-w-full break-words text-2xl font-semibold">{flash.detail}</span>}
           {flash.sub && <span className="text-lg opacity-90">{flash.sub}</span>}
+          <span className="mt-6 text-sm opacity-70">Touchez l’écran pour continuer</span>
         </button>
       )}
 
-      <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 pt-4">
-        <header className="flex items-center justify-between">
-          <div>
-            <Link href="/admin/events" className="text-xs text-slate-500 hover:text-slate-800">
-              ← Espace admin
-            </Link>
-            <h1 className="text-xl font-bold text-slate-800">Contrôle des billets</h1>
-            <p className="text-xs text-slate-500">{branding.appShortName}</p>
-          </div>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
-          >
-            Déconnexion
-          </button>
-        </header>
+      <PageHeader title="Contrôle" description="Scannez les billets à l’entrée de la salle." />
 
+      <div className="space-y-5">
         {/* Séance contrôlée */}
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <label htmlFor="event-select" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Séance contrôlée
-          </label>
-          <select
-            id="event-select"
-            value={selectedId ?? ""}
-            onChange={(e) => selectEvent(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            disabled={events.length === 0}
-          >
-            {events.length === 0 && <option value="">Aucune projection</option>}
-            {[...events]
-              .sort(
-                (a, b) =>
-                  Math.abs(new Date(a.date).getTime() - Date.now()) -
-                  Math.abs(new Date(b.date).getTime() - Date.now()),
-              )
-              .map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.name} — {formatEventDate(event.date)}
-                </option>
-              ))}
-          </select>
+        <Card className="p-4 sm:p-5">
+          <Field label="Séance contrôlée" htmlFor="event-select">
+            <Select
+              id="event-select"
+              value={selectedId ?? ""}
+              onChange={(e) => selectEvent(e.target.value)}
+              disabled={events.length === 0}
+            >
+              {events.length === 0 && <option value="">Aucune séance</option>}
+              {[...events]
+                .sort(
+                  (a, b) =>
+                    Math.abs(new Date(a.date).getTime() - Date.now()) - Math.abs(new Date(b.date).getTime() - Date.now()),
+                )
+                .map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.name} — {formatDayTimeShort(event.date)}
+                  </option>
+                ))}
+            </Select>
+          </Field>
 
           {selected && (
-            <div className="mt-4">
-              <div className="flex items-end justify-between">
-                <p className="text-3xl font-extrabold text-slate-800">
+            <div className="mt-5">
+              <div className="flex items-end justify-between gap-3">
+                <p className="font-display text-5xl font-extrabold leading-none tabular">
                   {selected.checkedIn}
-                  <span className="text-lg font-semibold text-slate-400"> / {selected.issued}</span>
+                  <span className="ml-1.5 text-2xl font-semibold text-subtle">/ {selected.issued}</span>
                 </p>
-                <p className="text-sm text-slate-500">
-                  {Math.max(0, selected.issued - selected.checkedIn)} restant(s)
+                <p className="pb-1 text-sm font-semibold text-subtle">
+                  {Math.max(0, selected.issued - selected.checkedIn)} restant{selected.issued - selected.checkedIn > 1 ? "s" : ""}
                 </p>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${progress}%` }} />
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                <div className="h-full rounded-full bg-success transition-all duration-500" style={{ width: `${progress}%` }} />
               </div>
-              <p className="mt-1 text-xs text-slate-500">
-                billets contrôlés / émis{selected.location ? ` · ${selected.location}` : ""}
+              <p className="mt-2 text-sm text-subtle">
+                billets contrôlés sur billets émis{selected.location ? ` · ${selected.location}` : ""}
               </p>
             </div>
           )}
-        </section>
+        </Card>
 
         {/* Caméra */}
-        <section className="flex flex-col items-center gap-3">
-          <div id="scanner-container" className="flex w-full justify-center" />
-          {cameraError && <p className="text-center text-sm text-red-600">{cameraError}</p>}
-          {!scanning ? (
-            <button
-              onClick={() => void startScanner()}
-              disabled={!selected}
-              className="w-full rounded-xl bg-green-600 py-3 text-lg font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              Démarrer le scanner
-            </button>
-          ) : (
-            <button
-              onClick={() => void handleStop()}
-              className="w-full rounded-xl bg-red-600 py-3 text-lg font-semibold text-white hover:bg-red-700"
-            >
+        <section className="space-y-3" aria-label="Scanner">
+          <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-3xl bg-ink shadow-card">
+            <div id="scanner-container" className="absolute inset-0 [&_video]:size-full [&_video]:object-cover" />
+            {!scanning && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center text-white">
+                <QrCode className="size-16 text-white/60" aria-hidden />
+                <div>
+                  <p className="font-display text-xl font-bold">Prêt à scanner</p>
+                  <p className="mt-1 text-sm text-white/70">Le QR code du billet se lit directement avec la caméra.</p>
+                </div>
+                <Button size="lg" variant="cta" onClick={() => void startScanner()} disabled={!selected}>
+                  <Camera aria-hidden />
+                  Démarrer le scanner
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {cameraError && <Alert tone="danger">{cameraError}</Alert>}
+
+          {scanning && (
+            <Button size="lg" block variant="danger-soft" onClick={() => void handleStop()}>
+              <Square aria-hidden />
               Arrêter le scanner
-            </button>
+            </Button>
           )}
         </section>
 
         {/* Saisie manuelle */}
-        <section className="flex gap-2">
-          <input
-            type="text"
-            value={manualCode}
-            onChange={(e) => setManualCode(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitManual();
+        <Card className="p-4 sm:p-5">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitManual();
             }}
-            placeholder="Code du billet (TICKET-…)"
-            autoCapitalize="characters"
-            autoComplete="off"
-            autoCorrect="off"
-            className="min-w-0 flex-1 rounded-lg border bg-white px-3 py-2 text-center font-mono text-sm shadow-sm"
-          />
-          <button
-            onClick={submitManual}
-            disabled={loading || !selected}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            className="space-y-3"
           >
-            {loading ? "…" : "Vérifier"}
-          </button>
-        </section>
+            <Field label="Saisir un code à la main" htmlFor="manual-code">
+              <Input
+                id="manual-code"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                placeholder="TICKET-…"
+                autoCapitalize="characters"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                className="font-mono"
+              />
+            </Field>
+            <Button type="submit" variant="secondary" block loading={loading} disabled={!selected || !manualCode.trim()}>
+              <Search aria-hidden />
+              Vérifier
+            </Button>
+          </form>
+        </Card>
 
         {/* Historique */}
         {history.length > 0 && (
-          <section className="space-y-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Derniers contrôles</h2>
-            {history.map((item, index) => (
-              <div key={`${item.code}-${index}`} className={`rounded-lg border px-3 py-2 text-sm ${HISTORY_STYLES[item.kind]}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold">{item.title}</span>
-                  <span className="text-xs opacity-70">{item.time}</span>
-                </div>
-                <div className="truncate">{item.detail}</div>
-                <div className="font-mono text-xs opacity-70">{item.code}</div>
-              </div>
-            ))}
+          <section aria-labelledby="history-title">
+            <h2 id="history-title" className="mb-3 text-lg font-bold">
+              Derniers contrôles
+            </h2>
+            <Card>
+              <ul className="divide-y divide-line">
+                {history.map((item, index) => {
+                  const Icon = FLASH_STYLES[item.kind].icon;
+                  return (
+                    <li key={`${item.code}-${index}`} className="flex items-center gap-3 p-3.5">
+                      <span className={cn("inline-flex size-10 shrink-0 items-center justify-center rounded-full", HISTORY_STYLES[item.kind])}>
+                        <Icon className="size-5" strokeWidth={2.6} aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{item.detail || item.title}</p>
+                        <p className="truncate text-xs text-subtle">
+                          {item.title} · <span className="font-mono">{item.code}</span>
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs tabular text-subtle">{item.time}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
           </section>
         )}
       </div>
-    </div>
+    </>
+  );
+}
+
+export default function VerifyTicketPage() {
+  return (
+    <AdminLayout title="Contrôle" width="narrow">
+      <VerifyContent />
+    </AdminLayout>
   );
 }

@@ -43,10 +43,10 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { name, date, location, description, logoUrl, image, maxTickets } = body;
+  const { name, date, location, description, logoUrl, image, maxTickets, show } = body;
 
   if (!name || !date) {
-    return new Response(JSON.stringify({ error: "Nom et date requis." }), { status: 400 });
+    return new Response(JSON.stringify({ error: "Le nom et la date sont requis." }), { status: 400 });
   }
 
   const newEvent = await db.event.create({
@@ -58,6 +58,7 @@ export async function POST(req: Request) {
       logoUrl,
       image,
       maxTickets: maxTickets ? parseInt(maxTickets, 10) : null,
+      show: show === true,
       createdById: session.user.id,
     },
   });

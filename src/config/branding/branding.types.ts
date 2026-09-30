@@ -4,8 +4,22 @@ export type BrandingConfig = {
   logoUrl: string;
   logoAlt: string;
   faviconUrl: string;
+  /** Icône PNG carrée (≥ 512 px) : écran d'accueil du téléphone et partage de liens. */
+  iconUrl?: string;
+  /** Couleur d'action principale (boutons, liens) : doit contraster avec du blanc. */
   primaryColor: string;
+  /** Version plus sombre de la couleur principale (survol, surfaces sombres). */
   secondaryColor: string;
+  /** Couleur vive du logo, pour les touches décoratives et le focus. */
+  highlightColor?: string;
+  /** Couleur des appels à l'action (ex. « Réserver ») : texte foncé dessus. */
+  accentColor?: string;
+  /** Couleur du texte et des surfaces très sombres. */
+  inkColor?: string;
+  /** Fond des pages. */
+  canvasColor?: string;
+  /** Accroche affichée sous le titre de la page d'accueil. */
+  tagline?: string;
   footerText: string;
   emailSignature: string;
   eventTermsText: string;

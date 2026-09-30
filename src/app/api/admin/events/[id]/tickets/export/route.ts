@@ -33,10 +33,10 @@ const fileSlug = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
-    .slice(0, 50) || "projection";
+    .slice(0, 50) || "seance";
 
 /**
- * 📄 GET /api/admin/events/[id]/tickets/export
+ * GET /api/admin/events/[id]/tickets/export
  * Liste des inscrits au format CSV (séparateur « ; » et BOM UTF-8 pour Excel en français).
  */
 export async function GET(_req: Request, context: Context) {

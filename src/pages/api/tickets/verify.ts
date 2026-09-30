@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     typeof body.eventId === "string" && body.eventId ? body.eventId : null;
 
   if (!code) {
-    return res.status(400).json({ error: "Code du ticket manquant." });
+    return res.status(400).json({ error: "Code du billet manquant." });
   }
 
   try {
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({
         valid: false,
         reason: "not_found",
-        message: "Ticket introuvable.",
+        message: "Billet introuvable.",
       });
     }
 
@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({
         valid: false,
         reason: "forbidden",
-        message: "⛔ Vous n’êtes pas autorisé à vérifier ce ticket.",
+        message: "Vous n’êtes pas autorisé à contrôler ce billet.",
       });
     }
 
@@ -80,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         valid: false,
         reason: "wrong_event",
-        message: `⚠️ Ce billet est pour « ${ticket.event.name} » (${formatDateTime(ticket.event.date)}), pas pour cette séance.`,
+        message: `Ce billet est pour « ${ticket.event.name} » (${formatDateTime(ticket.event.date)}), pas pour cette séance.`,
         ticket: ticketInfo,
       });
     }
@@ -90,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         valid: false,
         reason: "already_used",
-        message: `🚫 Ticket déjà validé le ${formatDateTime(ticket.redeemedAt ?? new Date())}.`,
+        message: `Billet déjà validé le ${formatDateTime(ticket.redeemedAt ?? new Date())}.`,
         ticket: ticketInfo,
       });
     }
@@ -109,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         valid: false,
         reason: "already_used",
-        message: `🚫 Ticket déjà validé le ${formatDateTime(usedAt)}.`,
+        message: `Billet déjà validé le ${formatDateTime(usedAt)}.`,
         ticket: { ...ticketInfo, redeemedAt: usedAt },
       });
     }
@@ -117,11 +117,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       valid: true,
       reason: "valid",
-      message: `✅ Ticket valide pour ${ticket.participant.name} (${ticket.event.name}).`,
+      message: `Billet valide pour ${ticket.participant.name} (${ticket.event.name}).`,
       ticket: { ...ticketInfo, redeemedAt },
     });
   } catch (error) {
-    console.error("Erreur de vérification du ticket :", error);
+    console.error("Erreur de vérification du billet :", error);
     return res.status(500).json({ error: "Erreur serveur." });
   }
 }

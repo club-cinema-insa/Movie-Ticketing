@@ -1,40 +1,72 @@
-// src/pages/events/[id]/register.tsx
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import type { GetServerSideProps } from "next";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CalendarPlus,
+  Clapperboard,
+  Clock,
+  DoorOpen,
+  Download,
+  Info,
+  MapPin,
+  Smartphone,
+  Ticket,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
 import { db } from "@/server/db";
 import { branding } from "@/config/branding";
-import BrandHeader from "@/components/branding/BrandHeader";
-import BrandFooter from "@/components/branding/BrandFooter";
+import { PublicLayout } from "@/components/layout/PublicLayout";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, Input } from "@/components/ui/field";
+import { buildIcs, downloadTextFile } from "@/lib/ics";
+import { eventSchedule, formatDayWithYear, remainingSeats } from "@/lib/format";
 
 type EventPageProps = {
   event: {
     id: string;
     name: string;
     date: string;
-    location?: string | null;
-    description?: string | null;
-    image?: string | null;
-    logoUrl?: string | null;
+    location: string | null;
+    description: string | null;
+    image: string | null;
+    maxTickets: number | null;
+    issued: number;
   } | null;
 };
 
-export const getServerSideProps: GetServerSideProps<EventPageProps> = async (
-  ctx,
-) => {
-  const id = ctx.params?.id as string | undefined;
+type RegisterResponse = {
+  success: boolean;
+  reused: boolean;
+  emailSent: boolean;
+  pdfUrl: string;
+  ticket: {
+    code: string;
+    number: number | null;
+    qrCode: string;
+    eventName: string;
+    participantName: string;
+    participantEmail: string;
+  };
+};
 
-  if (!id) {
-    return { notFound: true };
-  }
+export const getServerSideProps: GetServerSideProps<EventPageProps> = async (ctx) => {
+  const id = ctx.params?.id as string | undefined;
+  if (!id) return { notFound: true };
 
   const event = await db.event.findUnique({
     where: { id },
+    include: { _count: { select: { tickets: true } } },
   });
 
-  if (!event || event.show === false) {
-    // si tu veux permettre l'inscription même quand show = false, enlève ce check
-    return { notFound: true };
-  }
+  // Une projection non publiée n'existe pas pour le public.
+  if (!event || !event.show) return { notFound: true };
 
   return {
     props: {
@@ -42,46 +74,116 @@ export const getServerSideProps: GetServerSideProps<EventPageProps> = async (
         id: event.id,
         name: event.name,
         date: event.date.toISOString(),
-        location: event.location ?? null,
-        description: event.description ?? null,
-        image: event.image ?? null,
-        logoUrl: event.logoUrl ?? null,
+        location: event.location,
+        description: event.description,
+        image: event.image,
+        maxTickets: event.maxTickets,
+        issued: event._count.tickets,
       },
     },
   };
 };
+
+function Fact({
+  icon: Icon,
+  label,
+  children,
+  wide = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <li className={`flex items-center gap-3.5 ${wide ? "sm:col-span-2" : ""}`}>
+      <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-subtle">{label}</p>
+        <div className="font-semibold leading-snug first-letter:uppercase">{children}</div>
+      </div>
+    </li>
+  );
+}
+
+/** Le billet, tel que l'étudiant le présentera à l'entrée. */
+function TicketStub({ ticket, eventName }: { ticket: RegisterResponse["ticket"]; eventName: string }) {
+  return (
+    <div className="overflow-hidden rounded-3xl bg-surface shadow-pop ring-1 ring-line">
+      <div className="flex items-center gap-3 bg-brand-strong px-5 py-4 text-white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={branding.logoUrl} alt="" width={36} height={36} className="size-9 rounded-lg ring-1 ring-white/30" />
+        <span className="font-display font-bold">{branding.appShortName}</span>
+        {ticket.number !== null && (
+          <Badge tone="inverse" className="ml-auto">
+            Billet n°{ticket.number}
+          </Badge>
+        )}
+      </div>
+
+      <div className="px-5 pt-5">
+        <p className="font-display text-xl font-bold leading-tight">{eventName}</p>
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-subtle">
+          <UserRound className="size-4" aria-hidden />
+          {ticket.participantName}
+        </p>
+      </div>
+
+      <div className="relative my-5" aria-hidden>
+        <span className="absolute -left-3 top-1/2 size-6 -translate-y-1/2 rounded-full bg-canvas" />
+        <span className="absolute -right-3 top-1/2 size-6 -translate-y-1/2 rounded-full bg-canvas" />
+        <div className="mx-6 border-t-2 border-dashed border-line-strong" />
+      </div>
+
+      <div className="flex flex-col items-center px-5 pb-6">
+        <div className="rounded-2xl border border-line bg-white p-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={ticket.qrCode}
+            alt={`QR code du billet ${ticket.code}`}
+            width={224}
+            height={224}
+            className="size-56 [image-rendering:pixelated]"
+          />
+        </div>
+        <p className="mt-3 font-mono text-sm font-semibold tracking-wider text-ink/80">{ticket.code}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function RegisterPage({ event }: EventPageProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [ticketData, setTicketData] = useState<any>(null);
+  const [result, setResult] = useState<RegisterResponse | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
   if (!event) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Événement introuvable</h1>
-          <p className="text-gray-600">
-            Cet événement n’existe pas ou n’est plus disponible.
-          </p>
+      <PublicLayout title="Séance introuvable">
+        <div className="mx-auto max-w-lg px-4 pt-16">
+          <EmptyState
+            icon={Clapperboard}
+            title="Séance introuvable"
+            description="Cette séance n’existe pas ou n’est plus disponible."
+            action={
+              <Button asChild>
+                <Link href="/events">Voir les séances</Link>
+              </Button>
+            }
+          />
         </div>
-      </div>
+      </PublicLayout>
     );
   }
 
-  const eventDate = new Date(event.date);
-  const formattedDate = eventDate.toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-  const formattedTime = eventDate.toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const schedule = eventSchedule(event.date);
+  const remaining = remainingSeats(event.maxTickets, event.issued);
+  const full = remaining === 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,219 +196,225 @@ export default function RegisterPage({ event }: EventPageProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email }),
       });
-
-      const data = await res.json();
-      setLoading(false);
+      const data = (await res.json()) as RegisterResponse & { error?: string };
 
       if (!res.ok) {
-        setError(data.error || "Une erreur est survenue");
+        setError(data.error ?? "Une erreur est survenue. Veuillez réessayer.");
         return;
       }
 
-      setTicketData(data);
-    } catch (err) {
-      console.error(err);
+      setResult(data);
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    } catch {
+      setError("Connexion impossible. Vérifiez votre réseau puis réessayez.");
+    } finally {
       setLoading(false);
-      setError("Une erreur est survenue, veuillez réessayer.");
     }
   };
 
+  const addToCalendar = () => {
+    const details = schedule.doors
+      ? `Ouverture des portes à ${schedule.doors}, ${schedule.startLabel.toLowerCase()} à ${schedule.start}.`
+      : `Séance à ${schedule.start}.`;
+    downloadTextFile(
+      "seance.ics",
+      buildIcs({
+        id: event.id,
+        title: event.name,
+        start: new Date(event.date),
+        location: event.location,
+        description: details,
+      }),
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="max-w-4xl mx-auto px-4 space-y-8">
-        <BrandHeader />
-        {/* En-tête événement */}
-        <div className="bg-white shadow rounded-2xl overflow-hidden border border-slate-200">
-          {event.image && (
-            <div className="h-56 w-full overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={event.image}
-                alt={`Affiche de l’événement ${event.name}`}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
+    <PublicLayout
+      title={event.name}
+      description={`${formatDayWithYear(event.date)}${event.location ? ` · ${event.location}` : ""}. ${branding.tagline ?? ""}`.trim()}
+      image={event.image}
+    >
+      <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 sm:pt-8">
+        <Link
+          href="/events"
+          className="mb-4 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-subtle hover:text-ink"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Toutes les séances
+        </Link>
 
-          <div className="p-6 md:p-8 flex flex-col gap-4 md:flex-row md:items-start">
-            {event.logoUrl && (
-              <div className="flex-shrink-0 flex items-center justify-center md:mr-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-x-10">
+          {/* Affiche, titre et informations pratiques */}
+          <section className="space-y-6 lg:col-start-1">
+            {event.image ? (
+              <div className="overflow-hidden rounded-2xl bg-brand-strong shadow-card">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={event.logoUrl}
-                  alt={`Logo ${event.name}`}
-                  className="w-20 h-20 object-contain rounded-lg border border-slate-200 bg-white p-2"
-                />
+                <img src={event.image} alt={`Affiche de ${event.name}`} className="aspect-[16/10] w-full object-cover" />
               </div>
-            )}
-
-            <div className="flex-1 space-y-3">
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-                {event.name}
-              </h1>
-
-              <div className="flex flex-col gap-1 text-sm text-slate-700">
-                <p>
-                  📅 <span className="font-medium">{formattedDate}</span>
-                </p>
-                <p>
-                  ⏰ <span className="font-medium">{formattedTime}</span>
-                </p>
-                {event.location && (
-                  <p>
-                    📍 <span className="font-medium">{event.location}</span>
-                  </p>
-                )}
-              </div>
-
-              {event.description && (
-                <p className="text-slate-700 text-sm leading-relaxed border-t border-slate-200 pt-3">
-                  {event.description}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Bloc inscription / confirmation */}
-        <div className="grid md:grid-cols-2 gap-6 items-start">
-          {/* Formulaire ou confirmation */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-            {!ticketData ? (
-              <>
-                <h2 className="text-xl font-semibold mb-4">
-                  📝 Inscription à l’événement
-                </h2>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Nom complet
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-[var(--brand-primary)]"
-                      placeholder="Votre nom"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Adresse e-mail
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-[var(--brand-primary)]"
-                      placeholder="vous@example.com"
-                      required
-                    />
-                  </div>
-
-                  {error && (
-                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                      {error}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full inline-flex justify-center items-center gap-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-secondary)] text-white text-sm font-medium px-4 py-2.5 rounded-lg shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {loading ? "Inscription en cours..." : "S’inscrire"}
-                  </button>
-                </form>
-              </>
             ) : (
-              <div className="text-center space-y-4">
-                <h2 className="text-xl font-semibold">
-                  🎟️ Votre inscription est confirmée
-                </h2>
-                <p className="text-sm text-slate-700">
-                  Bonjour{" "}
-                  <strong>{ticketData.ticket.participantName}</strong>,<br />
-                  Votre ticket pour{" "}
-                  <strong>{ticketData.ticket.eventName}</strong> a été
-                  enregistré.
-                </p>
-
-                {ticketData.reused && (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                    ⚠ Vous aviez déjà un billet pour cet événement, nous vous
-                    avons renvoyé le même ticket.
-                  </p>
-                )}
-
-                {ticketData.emailSent ? (
-                  <p className="text-xs text-slate-600">
-                    Un e-mail a été envoyé à{" "}
-                    <strong>{ticketData.ticket.participantEmail}</strong> avec
-                    votre billet en pièce jointe.
-                  </p>
-                ) : (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                    L’e-mail n’a pas pu être envoyé : téléchargez votre billet
-                    ci-dessous et conservez-le. Vous pouvez aussi vous
-                    réinscrire avec la même adresse pour le récupérer.
-                  </p>
-                )}
-
-                {ticketData.ticket.qrCode && (
-                  <div className="mx-auto w-fit rounded-xl border border-slate-200 bg-white p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={ticketData.ticket.qrCode}
-                      alt="QR code de votre billet"
-                      className="h-40 w-40"
-                    />
-                    <p className="mt-2 text-xs font-mono tracking-wide text-slate-600">
-                      {ticketData.ticket.code}
-                    </p>
-                  </div>
-                )}
-
-                <a
-                  href={ticketData.pdfUrl}
-                  download
-                  className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-sm"
-                >
-                  Télécharger mon ticket PDF
-                </a>
+              <div className="flex aspect-[16/7] items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-strong text-white/30 shadow-card">
+                <Clapperboard className="size-16" aria-hidden />
               </div>
             )}
-          </div>
 
-          {/* Petit récap / “infos pratiques” */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
-            <h2 className="text-lg font-semibold">ℹ️ Informations pratiques</h2>
-            <ul className="text-sm text-slate-700 space-y-2">
-              <li>
-                ✅ Merci de venir avec votre{" "}
-                <span className="font-medium">ticket PDF</span> (sur
-                votre téléphone).
-              </li>
-              <li>
-                ⏱️ Pensez à arriver quelques minutes en avance pour faciliter
-                l’accueil.
-              </li>
+            <h1 className="text-3xl font-extrabold sm:text-4xl">{event.name}</h1>
+
+            <ul className="grid gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card sm:grid-cols-2 sm:p-5">
+              <Fact icon={CalendarDays} label="Date">
+                {formatDayWithYear(event.date)}
+              </Fact>
               {event.location && (
-                <li>
-                  📍 Lieu : <span className="font-medium">{event.location}</span>
-                </li>
+                <Fact icon={MapPin} label="Lieu">
+                  {event.location}
+                </Fact>
               )}
-              {branding.eventTermsText && (
-                <li>📌 {branding.eventTermsText}</li>
+              {schedule.doors ? (
+                <Fact icon={DoorOpen} label="Horaires" wide>
+                  <span className="block">Ouverture des portes à {schedule.doors}</span>
+                  <span className="block">
+                    {schedule.startLabel} à {schedule.start}
+                  </span>
+                </Fact>
+              ) : (
+                <Fact icon={Clock} label="Heure" wide>
+                  {schedule.start}
+                </Fact>
+              )}
+              {remaining !== null && (
+                <Fact icon={Ticket} label="Places" wide>
+                  {full ? "Complet" : `${remaining} restante${remaining === 1 ? "" : "s"}`}
+                </Fact>
               )}
             </ul>
-          </div>
+          </section>
+
+          {/* Réservation */}
+          <aside className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            <div className="scroll-mt-24 lg:sticky lg:top-24" ref={resultRef}>
+              {result ? (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-2xl font-extrabold">{result.reused ? "Voici votre billet" : "Votre place est réservée"}</h2>
+                    <p className="mt-1 text-[0.95rem] text-subtle">
+                      {result.reused
+                        ? "Vous aviez déjà réservé : c’est le même billet."
+                        : "Présentez ce QR code à l’entrée, sur votre téléphone ou imprimé."}
+                    </p>
+                  </div>
+
+                  <TicketStub ticket={result.ticket} eventName={event.name} />
+
+                  <div className="grid gap-2.5">
+                    <Button asChild size="lg" block>
+                      <a href={result.pdfUrl} download>
+                        <Download aria-hidden />
+                        Télécharger le billet (PDF)
+                      </a>
+                    </Button>
+                    <Button variant="secondary" size="lg" block onClick={addToCalendar}>
+                      <CalendarPlus aria-hidden />
+                      Ajouter au calendrier
+                    </Button>
+                  </div>
+
+                  {result.emailSent ? (
+                    <Alert tone="success">
+                      Un e-mail avec votre billet a été envoyé à <strong>{result.ticket.participantEmail}</strong>.
+                    </Alert>
+                  ) : (
+                    <Alert tone="info">
+                      Gardez cette page ou téléchargez votre billet. Pour le retrouver, il suffit de réserver à nouveau avec la même
+                      adresse e-mail.
+                    </Alert>
+                  )}
+                </div>
+              ) : (
+                <Card className="p-5 sm:p-6">
+                  <h2 className="text-2xl font-extrabold">{full ? "Retrouver mon billet" : "Réserver ma place"}</h2>
+                  <p className="mt-1 text-[0.95rem] text-subtle">
+                    {full
+                      ? "Cette séance est complète. Si vous aviez réservé, saisissez les mêmes informations pour retrouver votre billet."
+                      : "Gratuit. Votre billet s’affiche dès la réservation."}
+                  </p>
+
+                  <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+                    <Field label="Nom et prénom" htmlFor="name">
+                      <Input
+                        id="name"
+                        name="name"
+                        type="text"
+                        autoComplete="name"
+                        autoCapitalize="words"
+                        required
+                        maxLength={100}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Camille Dupont"
+                      />
+                    </Field>
+
+                    <Field label="Adresse e-mail" htmlFor="email" hint="Utilisée pour cette réservation et pour retrouver votre billet.">
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="none"
+                        required
+                        maxLength={254}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="camille@exemple.fr"
+                      />
+                    </Field>
+
+                    {error && <Alert tone="danger">{error}</Alert>}
+
+                    <Button type="submit" variant="cta" size="lg" block loading={loading}>
+                      {!loading && <Ticket aria-hidden />}
+                      {loading ? "Réservation en cours" : full ? "Retrouver mon billet" : "Réserver ma place"}
+                    </Button>
+                  </form>
+                </Card>
+              )}
+            </div>
+          </aside>
+
+          {/* Détails */}
+          <section className="space-y-6 lg:col-start-1">
+            {event.description && (
+              <div>
+                <h2 className="mb-2 text-xl font-bold">À propos de la séance</h2>
+                <p className="whitespace-pre-line text-[0.95rem] leading-relaxed text-ink/85">{event.description}</p>
+              </div>
+            )}
+
+            <div className="rounded-2xl bg-brand-tint p-4 ring-1 ring-brand/10 sm:p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
+                <Info className="size-5 text-brand" aria-hidden />
+                Bon à savoir
+              </h2>
+              <ul className="space-y-2.5 text-[0.95rem] text-ink/85">
+                <li className="flex gap-3">
+                  <Smartphone className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />
+                  Présentez le QR code de votre billet à l’entrée, sur votre téléphone ou imprimé.
+                </li>
+                <li className="flex gap-3">
+                  <Ticket className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />
+                  Un billet par personne : une adresse e-mail ne peut réserver qu’une place par séance.
+                </li>
+                {branding.eventTermsText && (
+                  <li className="flex gap-3">
+                    <Info className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />
+                    {branding.eventTermsText}
+                  </li>
+                )}
+              </ul>
+            </div>
+          </section>
         </div>
       </div>
-      <BrandFooter />
-    </div>
+    </PublicLayout>
   );
 }

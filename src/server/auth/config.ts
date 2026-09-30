@@ -5,7 +5,7 @@ import { db } from "@/server/db";
 import { env } from "@/env";
 import { getInitialAdminDiscordIds } from "@/server/auth/access";
 
-// 🧩 Déclaration des types personnalisés pour NextAuth
+// Déclaration des types personnalisés pour NextAuth
 declare module "next-auth" {
   interface Session {
     user: {
@@ -107,7 +107,7 @@ export const authOptions: NextAuthOptions = {
       }
     },
     async session({ session, user }) {
-      // ✅ Injecte l'ID utilisateur dans la session
+      // Injecte l'ID utilisateur dans la session
       if (session.user) {
         session.user.id = user.id;
       }

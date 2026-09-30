@@ -1,317 +1,137 @@
-// src/pages/admin/events/[id]/edit.tsx
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
-import { branding } from "@/config/branding";
-import { startTimeLabel } from "@/lib/eventTime";
+import { Users } from "lucide-react";
+import { AdminLayout } from "@/components/layout/AdminLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { PageSpinner } from "@/components/ui/spinner";
+import { EventForm, emptyEventForm, eventFormToPayload, type EventFormValues } from "@/components/admin/EventForm";
+import { localDateTimeParts } from "@/lib/eventTime";
 
 type EventResponse = {
   id: string;
   name: string;
   date: string;
-  location?: string | null;
-  description?: string | null;
-  logoUrl?: string | null;
-  image?: string | null;
-  maxTickets?: number | null;
+  location: string | null;
+  description: string | null;
+  image: string | null;
+  maxTickets: number | null;
+  show: boolean;
   totalTickets?: number;
   checkedInCount?: number;
 };
 
-type FormState = {
-  name: string;
-  date: string;
-  time: string;
-  location: string;
-  description: string;
-  logoUrl: string;
-  image: string;
-  maxTickets: string;
-};
-
-const pad2 = (value: number) => value.toString().padStart(2, "0");
-
-const getLocalDateTimeParts = (value: string) => {
-  const dateObj = new Date(value);
-
-  if (Number.isNaN(dateObj.getTime())) {
-    return { date: "", time: "" };
-  }
-
-  return {
-    date: `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(
-      dateObj.getDate(),
-    )}`,
-    time: `${pad2(dateObj.getHours())}:${pad2(dateObj.getMinutes())}`,
-  };
-};
-
-const formatLocalDateTime = (value: Date) => {
-  const offsetMinutes = -value.getTimezoneOffset();
-  const sign = offsetMinutes >= 0 ? "+" : "-";
-  const absMinutes = Math.abs(offsetMinutes);
-  const offsetHours = pad2(Math.floor(absMinutes / 60));
-  const offsetMins = pad2(absMinutes % 60);
-
-  return `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(
-    value.getDate(),
-  )}T${pad2(value.getHours())}:${pad2(
-    value.getMinutes(),
-  )}:00${sign}${offsetHours}:${offsetMins}`;
-};
-
 export default function EditEventPage() {
   const router = useRouter();
-  const { id } = router.query;
+  const id = typeof router.query.id === "string" ? router.query.id : null;
 
+  const [values, setValues] = useState<EventFormValues>(emptyEventForm);
+  const [name, setName] = useState("");
+  const [stats, setStats] = useState({ issued: 0, checkedIn: 0 });
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState<FormState>({
-    name: "",
-    date: "",
-    time: "",
-    location: "",
-    description: "",
-    logoUrl: "",
-    image: "",
-    maxTickets: "",
-  });
-  const [stats, setStats] = useState({ totalTickets: 0, checkedInCount: 0 });
+  const [loadError, setLoadError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Charger l’événement existant
   useEffect(() => {
-    if (!router.isReady || typeof id !== "string") return;
+    if (!router.isReady || !id) return;
 
-    const fetchEvent = async () => {
+    const load = async () => {
       try {
-        setLoading(true);
-        setError("");
-
         const res = await fetch(`/api/admin/events/${id}`);
         if (!res.ok) {
-          setError("Impossible de charger cet événement.");
-          setLoading(false);
+          setLoadError(res.status === 403 ? "Vous n’avez pas accès à cette séance." : "Séance introuvable.");
           return;
         }
-
-        const data: EventResponse = await res.json();
-
-        const { date: datePart, time } = getLocalDateTimeParts(data.date);
-
-        setFormData({
-          name: data.name ?? "",
-          date: datePart ?? "",
-          time,
+        const data = (await res.json()) as EventResponse;
+        const parts = localDateTimeParts(data.date);
+        setName(data.name);
+        setValues({
+          name: data.name,
+          date: parts?.date ?? "",
+          time: parts?.time ?? "",
           location: data.location ?? "",
           description: data.description ?? "",
-          logoUrl: data.logoUrl ?? "",
           image: data.image ?? "",
-          maxTickets: data.maxTickets ? data.maxTickets.toString() : "",
+          maxTickets: data.maxTickets ? String(data.maxTickets) : "",
+          show: data.show,
         });
-        setStats({
-          totalTickets: data.totalTickets ?? 0,
-          checkedInCount: data.checkedInCount ?? 0,
-        });
-      } catch (e) {
-        console.error(e);
-        setError("Erreur lors du chargement de l’événement.");
+        setStats({ issued: data.totalTickets ?? 0, checkedIn: data.checkedInCount ?? 0 });
+      } catch {
+        setLoadError("Impossible de charger la séance.");
       } finally {
         setLoading(false);
       }
     };
 
-    void fetchEvent();
+    void load();
   }, [router.isReady, id]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (typeof id !== "string") return;
-
-    if (!formData.date) {
-      alert("Veuillez renseigner la date");
-      return;
-    }
-
-    const dateTime = new Date(`${formData.date}T${formData.time || "00:00"}:00`);
-
-    if (Number.isNaN(dateTime.getTime())) {
-      alert("Date / heure invalides");
-      return;
-    }
-
-    const formattedDate = formatLocalDateTime(dateTime);
-
-    const res = await fetch(`/api/admin/events/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...formData,
-        date: formattedDate,
-        maxTickets: formData.maxTickets
-          ? parseInt(formData.maxTickets, 10)
-          : null,
-      }),
-    });
-
-    if (res.ok) {
-      alert("✅ Événement mis à jour avec succès !");
+  const handleSubmit = async () => {
+    if (!id) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/events/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(eventFormToPayload(values, { includeShow: false })),
+      });
+      if (!res.ok) {
+        setError("Les modifications n’ont pas pu être enregistrées. Réessayez.");
+        return;
+      }
       await router.push("/admin/events");
-    } else {
-      alert("Erreur lors de la mise à jour de l’événement.");
+    } catch {
+      setError("Connexion impossible. Vérifiez votre réseau puis réessayez.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (loading) return <p className="text-center mt-10">Chargement...</p>;
-
   return (
-    <div className="max-w-2xl mx-auto mt-10 bg-white p-6 rounded-lg shadow">
-      <h1 className="text-2xl font-bold mb-6 text-center">
-        ✏️ Modifier l’événement
-      </h1>
+    <AdminLayout title="Modifier la séance">
+      <div className="mx-auto max-w-2xl">
+        <PageHeader
+          back={{ href: "/admin/events", label: "Séances" }}
+          title="Modifier la séance"
+          description={name || undefined}
+        />
 
-      {error && (
-        <p className="mb-4 rounded bg-red-100 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-
-      <div className="mb-4 rounded border bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        <p>
-          Billets émis :{" "}
-          <span className="font-semibold">{stats.totalTickets}</span>
-        </p>
-        <p>
-          Billets validés :{" "}
-          <span className="font-semibold">{stats.checkedInCount}</span>
-        </p>
+        {loading ? (
+          <PageSpinner />
+        ) : loadError ? (
+          <Alert tone="danger">{loadError}</Alert>
+        ) : (
+          <EventForm
+            values={values}
+            onChange={(patch) => setValues((current) => ({ ...current, ...patch }))}
+            onSubmit={handleSubmit}
+            submitting={submitting}
+            submitLabel="Enregistrer"
+            error={error}
+            cancelHref="/admin/events"
+            notice={
+              <Alert tone="info">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span>
+                    {stats.issued} réservation{stats.issued > 1 ? "s" : ""}, dont {stats.checkedIn} billet
+                    {stats.checkedIn > 1 ? "s" : ""} déjà contrôlé{stats.checkedIn > 1 ? "s" : ""}.
+                  </span>
+                  <Button asChild variant="soft" size="sm">
+                    <Link href={`/admin/events/${id}/participants`}>
+                      <Users aria-hidden />
+                      Voir les réservations
+                    </Link>
+                  </Button>
+                </div>
+              </Alert>
+            }
+          />
+        )}
       </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nom */}
-        <div>
-          <label className="block mb-1 font-medium">Nom de l’événement</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, name: e.target.value }))
-            }
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-
-        {/* Date et Heure */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="block mb-1 font-medium">Date</label>
-            <input
-              type="date"
-              value={formData.date}
-              onChange={(e) =>
-                setFormData((f) => ({ ...f, date: e.target.value }))
-              }
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block mb-1 font-medium">
-              {branding.startsAfterDoorsMinutes ? "Heure d’ouverture des portes" : "Heure"}
-            </label>
-            <input
-              type="time"
-              value={formData.time}
-              onChange={(e) =>
-                setFormData((f) => ({ ...f, time: e.target.value }))
-              }
-              className="w-full border rounded px-3 py-2"
-            />
-            {branding.startsAfterDoorsMinutes && formData.time && (
-              <p className="mt-1 text-xs text-gray-500">
-                {branding.startLabel ?? "Début"} :{" "}
-                {startTimeLabel(formData.time, branding.startsAfterDoorsMinutes)}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Lieu */}
-        <div>
-          <label className="block mb-1 font-medium">Lieu</label>
-          <input
-            type="text"
-            value={formData.location}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, location: e.target.value }))
-            }
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-
-        {/* Max tickets */}
-        <div>
-          <label className="block mb-1 font-medium">
-            Nombre maximum de billets
-          </label>
-          <input
-            type="number"
-            value={formData.maxTickets}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, maxTickets: e.target.value }))
-            }
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className="block mb-1 font-medium">Description</label>
-          <textarea
-            value={formData.description}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, description: e.target.value }))
-            }
-            className="w-full border rounded px-3 py-2 h-24"
-          ></textarea>
-        </div>
-
-        {/* Image principale */}
-        <div>
-          <label className="block mb-1 font-medium">
-            Affiche du film (URL d’une image PNG ou JPEG)
-          </label>
-          <input
-            type="url"
-            value={formData.image}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, image: e.target.value }))
-            }
-            className="w-full border rounded px-3 py-2"
-          />
-          {formData.image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={formData.image}
-              alt="Image de l’événement"
-              className="w-full h-40 object-cover mt-2 rounded-lg"
-            />
-          )}
-        </div>
-
-        <div className="flex justify-between">
-          <button
-            type="button"
-            onClick={() => router.push("/admin/events")}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Enregistrer les modifications
-          </button>
-        </div>
-      </form>
-    </div>
+    </AdminLayout>
   );
 }

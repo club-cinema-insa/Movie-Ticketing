@@ -25,7 +25,7 @@ async function getIdFromContext(ctx: ParamsContext): Promise<string> {
 }
 
 /**
- * 🔍 GET /api/admin/events/[id]
+ * GET /api/admin/events/[id]
  * Récupérer un événement (pour pré-remplir le formulaire d’édition)
  */
 export async function GET(_req: Request, context: ParamsContext) {
@@ -39,7 +39,7 @@ export async function GET(_req: Request, context: ParamsContext) {
   const event = await db.event.findUnique({ where: { id } });
 
   if (!event) {
-    return Response.json({ error: "Événement introuvable" }, { status: 404 });
+    return Response.json({ error: "Séance introuvable" }, { status: 404 });
   }
 
   if (!canAccessEvent(event, session.user.id)) {
@@ -59,7 +59,7 @@ export async function GET(_req: Request, context: ParamsContext) {
 }
 
 /**
- * ✏️ PUT /api/admin/events/[id]
+ * PUT /api/admin/events/[id]
  * Mettre à jour un événement (partiellement : nom, date, show, etc.)
  */
 export async function PUT(req: Request, context: ParamsContext) {
@@ -73,7 +73,7 @@ export async function PUT(req: Request, context: ParamsContext) {
 
   const event = await db.event.findUnique({ where: { id } });
   if (!event) {
-    return Response.json({ error: "Événement introuvable" }, { status: 404 });
+    return Response.json({ error: "Séance introuvable" }, { status: 404 });
   }
   if (!canAccessEvent(event, session.user.id)) {
     return Response.json({ error: "Accès refusé" }, { status: 403 });
@@ -116,7 +116,7 @@ export async function PUT(req: Request, context: ParamsContext) {
 }
 
 /**
- * 🗑️ DELETE /api/admin/events/[id]
+ * DELETE /api/admin/events/[id]
  * Supprimer un événement
  */
 export async function DELETE(
@@ -134,7 +134,7 @@ export async function DELETE(
 
   if (!event) {
     return Response.json(
-      { error: "Événement introuvable" },
+      { error: "Séance introuvable" },
       { status: 404 },
     );
   }

@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { isValidDiscordId } from "@/server/auth/access";
 
 /**
- * 👥 GET /api/admin/users
+ * GET /api/admin/users
  * Liste des comptes autorisés à se connecter à l'espace admin.
  */
 export async function GET() {
@@ -38,7 +38,7 @@ export async function GET() {
 }
 
 /**
- * ➕ POST /api/admin/users
+ * POST /api/admin/users
  * Autorise un compte Discord (par son identifiant) à se connecter.
  */
 export async function POST(req: Request) {

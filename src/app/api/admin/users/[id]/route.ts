@@ -3,7 +3,7 @@ import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
 
 /**
- * 🗑️ DELETE /api/admin/users/[id]
+ * DELETE /api/admin/users/[id]
  * Retire l'accès d'un compte. Ses sessions sont supprimées en cascade : il est
  * déconnecté immédiatement.
  */
@@ -37,7 +37,7 @@ export async function DELETE(
   if (user._count.events > 0) {
     return Response.json(
       {
-        error: `Ce compte possède ${user._count.events} événement(s). Réattribuez-les avant de retirer l'accès.`,
+        error: `Ce compte a créé ${user._count.events} séance${user._count.events > 1 ? "s" : ""}. Réattribuez-les avant de retirer son accès.`,
       },
       { status: 409 },
     );

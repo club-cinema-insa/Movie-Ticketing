@@ -1,42 +1,14 @@
 import QRCode from "qrcode";
-import nodemailer from "nodemailer";
-import { branding } from "@/config/branding";
 
 /**
  * Génère un QR code en Base64 à partir du code de ticket unique.
  */
 export async function generateQRCode(ticketCode: string): Promise<string> {
   try {
-    return await QRCode.toDataURL(ticketCode);
+    // 480 px, marge réduite : net à l'écran comme à l'impression, et facile à scanner.
+    return await QRCode.toDataURL(ticketCode, { width: 480, margin: 1, errorCorrectionLevel: "M" });
   } catch (err) {
     console.error("Erreur lors de la génération du QR code :", err);
     throw new Error("Impossible de générer le QR code");
   }
-}
-
-/**
- * Envoie le ticket par email au participant.
- */
-export async function sendTicketEmail(to: string, html: string) {
-  if (process.env.EMAIL_DISABLED === "true") {
-    console.log(`📪 Envoi d’e-mail désactivé.)`);
-    return;
-  }
-  
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-
-  await transporter.sendMail({
-    from: `"${branding.appShortName}" <${process.env.SMTP_USER}>`,
-    to,
-    subject: "🎟️ Votre ticket d'événement",
-    html,
-  });
 }

@@ -34,3 +34,19 @@ export function nextSameWeekday(reference: Date, today: Date = new Date()): Date
   while (next < startOfToday) next.setDate(next.getDate() + 7);
   return next;
 }
+
+/** Date + heure saisies (fuseau du navigateur) → ISO 8601 avec décalage, prêt à envoyer à l'API. */
+export function toOffsetIso(date: string, time: string): string | null {
+  const value = new Date(`${date}T${time || "00:00"}:00`);
+  if (Number.isNaN(value.getTime())) return null;
+
+  const offset = -value.getTimezoneOffset();
+  const sign = offset >= 0 ? "+" : "-";
+  const abs = Math.abs(offset);
+  const p = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())}` +
+    `T${p(value.getHours())}:${p(value.getMinutes())}:00${sign}${p(Math.floor(abs / 60))}:${p(abs % 60)}`
+  );
+}

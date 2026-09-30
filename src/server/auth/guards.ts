@@ -25,7 +25,7 @@ export async function loadEventForAdmin(
   if ("response" in admin) return admin;
 
   const event = await db.event.findUnique({ where: { id: eventId } });
-  if (!event) return fail("Événement introuvable", 404);
+  if (!event) return fail("Séance introuvable", 404);
   if (!canAccessEvent(event, admin.userId)) return fail("Accès refusé", 403);
 
   return { userId: admin.userId, event };

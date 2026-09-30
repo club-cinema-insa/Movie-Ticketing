@@ -9,7 +9,7 @@ import {
 type Context = { params: Promise<{ id: string }> };
 
 /**
- * 👥 GET /api/admin/events/[id]/tickets
+ * GET /api/admin/events/[id]/tickets
  * Inscrits d'une projection, avec leur statut de contrôle.
  */
 export async function GET(_req: Request, context: Context) {
@@ -50,7 +50,7 @@ export async function GET(_req: Request, context: Context) {
 }
 
 /**
- * ➕ POST /api/admin/events/[id]/tickets
+ * POST /api/admin/events/[id]/tickets
  * Inscription manuelle par le bureau (personne sans réservation, placement exceptionnel).
  * Peut dépasser la capacité et fonctionne aussi sur une projection non publiée.
  */
@@ -70,7 +70,7 @@ export async function POST(req: Request, context: Context) {
 
   if (result.kind === "existing") {
     return Response.json(
-      { error: "Cette personne a déjà un billet pour cette projection." },
+      { error: "Cette personne a déjà un billet pour cette séance." },
       { status: 409 },
     );
   }
