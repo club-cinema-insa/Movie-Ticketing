@@ -24,9 +24,9 @@ const config = {
   // pour que Vercel embarque ses fichiers de données dans la fonction.
   serverExternalPackages: ["pdfkit"],
 
-  // Les logos de /public sont lus par le générateur de billets (fs) : à inclure explicitement.
+  // Logos de /public et polices du billet, lus par le générateur (fs) : à inclure explicitement.
   outputFileTracingIncludes: {
-    "/api/events/[id]/register": ["./public/*.png"],
+    "/api/events/[id]/register": ["./public/*.png", "./src/server/fonts/*"],
   },
 };
 

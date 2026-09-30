@@ -22,18 +22,24 @@ export type TicketPDFInput = {
   info?: string | null;
 };
 
+// Géométrie (en points)
 const PAGE_WIDTH = 360;
-const MARGIN = 24;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-const BAND_HEIGHT = 84;
-const POSTER_HEIGHT = 170;
-const QR_SIZE = 170;
+const PAD = 16; // marge autour de la carte
+const CARD_WIDTH = PAGE_WIDTH - PAD * 2;
+const RADIUS = 20;
+const INSET = 22; // marge intérieure du contenu
+const CONTENT_WIDTH = CARD_WIDTH - INSET * 2;
+const HERO_MIN = 190;
+const HERO_MAX = 300;
+const HERO_WITHOUT_POSTER = 150;
+const QR_SIZE = 168;
 
 const INK = "#0f172a";
 const MUTED = "#64748b";
 const LINE = "#cbd5e1";
 const PAGE_BG = "#e2e8f0";
 
+const FONT_DIR = path.join(process.cwd(), "src", "server", "fonts");
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const REMOTE_IMAGE_TIMEOUT_MS = 2500;
 
@@ -72,42 +78,304 @@ async function loadImage(src: string | null | undefined): Promise<Buffer | null>
   return null;
 }
 
-function drawImageSafe(
-  doc: PDFKit.PDFDocument,
-  image: Buffer | null,
-  draw: (buf: Buffer) => void,
-) {
-  if (!image) return;
+let fontCache: { regular: Buffer; bold: Buffer } | null = null;
+
+/** Police Unicode embarquée (Noto Sans, licence OFL) : accents, latin étendu, grec, cyrillique, vietnamien. */
+function setupFonts(doc: PDFKit.PDFDocument) {
+  fontCache ??= {
+    regular: fs.readFileSync(path.join(FONT_DIR, "NotoSans-Regular.ttf")),
+    bold: fs.readFileSync(path.join(FONT_DIR, "NotoSans-Bold.ttf")),
+  };
+  doc.registerFont("Body", fontCache.regular);
+  doc.registerFont("BodyBold", fontCache.bold);
+}
+
+/**
+ * Nettoie un texte avant impression : normalise, supprime les caractères de contrôle et
+ * ceux que la police ne sait pas dessiner (emoji, CJK…) au lieu d'afficher des glyphes erronés.
+ */
+function createSanitizer(doc: PDFKit.PDFDocument) {
+  doc.font("Body");
+  const embedded = (doc as unknown as {
+    _font: { font: { hasGlyphForCodePoint(codePoint: number): boolean } };
+  })._font.font;
+
+  return (text: string | null | undefined, fallback = ""): string => {
+    const cleaned = Array.from((text ?? "").normalize("NFC"))
+      .map((ch) => (/[\u0000-\u001f\u007f\u2028\u2029]/.test(ch) ? " " : ch))
+      .filter((ch) => !/[\u200b-\u200f\u2060\ufeff]/.test(ch))
+      .filter((ch) => embedded.hasGlyphForCodePoint(ch.codePointAt(0)!))
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+    return cleaned || fallback;
+  };
+}
+
+/** Vérifie que pdfkit sait lire l'image et retourne ses dimensions (sinon null). */
+function inspectImage(image: Buffer | null): { data: Buffer; width: number; height: number } | null {
+  if (!image) return null;
   try {
-    draw(image);
+    const probe = new PDFDocument({ size: [10, 10], margin: 0 });
+    // openImage existe dans pdfkit mais n'est pas déclaré dans @types/pdfkit.
+    const opener = probe as unknown as { openImage(data: Buffer): { width: number; height: number } };
+    const { width, height } = opener.openImage(image);
+    probe.end();
+    return width > 0 && height > 0 ? { data: image, width, height } : null;
   } catch {
-    // Format non supporté par pdfkit (ex. WebP) : on ignore.
+    return null;
   }
+}
+
+type Assets = {
+  clubLogo: Buffer | null;
+  poster: Buffer | null;
+  /** Hauteur du bandeau, adaptée au format de l'affiche pour ne pas la rogner inutilement. */
+  heroHeight: number;
+  qr: Buffer;
+};
+
+/**
+ * Dessine le billet et retourne l'ordonnée du bas du contenu.
+ * Appelée une première fois pour mesurer, puis pour de bon avec la hauteur exacte.
+ */
+function drawTicket(
+  doc: PDFKit.PDFDocument,
+  input: TicketPDFInput,
+  assets: Assets,
+  cardHeight: number,
+): number {
+  const cardX = PAD;
+  const cardY = PAD;
+  const heroHeight = assets.heroHeight;
+
+  // Fond de page
+  doc.rect(0, 0, PAGE_WIDTH, doc.page.height).fill(PAGE_BG);
+
+  // Carte blanche
+  doc.roundedRect(cardX, cardY, CARD_WIDTH, cardHeight, RADIUS).fill("#ffffff");
+
+  // ── Hero (affiche ou aplat de couleur), rogné aux angles de la carte ──
+  doc.save();
+  doc.roundedRect(cardX, cardY, CARD_WIDTH, cardHeight, RADIUS).clip();
+
+  if (assets.poster) {
+    doc.image(assets.poster, cardX, cardY, {
+      cover: [CARD_WIDTH, heroHeight],
+      align: "center",
+      valign: "center",
+    });
+  } else {
+    doc.rect(cardX, cardY, CARD_WIDTH, heroHeight).fill(branding.primaryColor);
+    doc.circle(cardX + CARD_WIDTH - 20, cardY + 10, 90).fillOpacity(0.10).fill("#ffffff");
+    doc.fillOpacity(1);
+  }
+
+  // Dégradés pour la lisibilité du texte sur l'affiche
+  const top = doc.linearGradient(0, cardY, 0, cardY + 90);
+  top.stop(0, "#000000", 0.6).stop(1, "#000000", 0);
+  doc.rect(cardX, cardY, CARD_WIDTH, 90).fill(top);
+
+  const bottomFadeHeight = 150;
+  const bottom = doc.linearGradient(0, cardY + heroHeight - bottomFadeHeight, 0, cardY + heroHeight);
+  bottom.stop(0, "#000000", 0).stop(1, "#000000", 0.88);
+  doc.rect(cardX, cardY + heroHeight - bottomFadeHeight, CARD_WIDTH, bottomFadeHeight).fill(bottom);
+  doc.restore();
+
+  // Logo du club (carré arrondi, comme dans le fichier d'origine) + nom
+  const logoX = cardX + INSET;
+  const logoY = cardY + 18;
+  const logoSize = 42;
+  if (assets.clubLogo) {
+    doc.save();
+    doc.roundedRect(logoX, logoY, logoSize, logoSize, 11).clip();
+    doc.image(assets.clubLogo, logoX, logoY, { width: logoSize, height: logoSize });
+    doc.restore();
+    doc.roundedRect(logoX, logoY, logoSize, logoSize, 11).lineWidth(1.5).stroke("#ffffff");
+  }
+  doc
+    .fillColor("#ffffff")
+    .font("BodyBold")
+    .fontSize(12)
+    .text(branding.appName, logoX + (assets.clubLogo ? logoSize + 12 : 0), logoY + 14, {
+      width: CONTENT_WIDTH - (assets.clubLogo ? logoSize + 12 : 0),
+      height: 16,
+      ellipsis: true,
+    });
+
+  // Titre en bas du hero : la police diminue si le titre est long (jusqu'à 4 lignes)
+  const TITLE_STEPS: { size: number; maxLines: number }[] = [
+    { size: 23, maxLines: 2 },
+    { size: 20, maxLines: 2 },
+    { size: 17, maxLines: 3 },
+    { size: 15, maxLines: 4 },
+  ];
+  let title = TITLE_STEPS[TITLE_STEPS.length - 1]!;
+  for (const step of TITLE_STEPS) {
+    doc.font("BodyBold").fontSize(step.size);
+    const lines = doc.heightOfString(input.eventName, { width: CONTENT_WIDTH }) / doc.currentLineHeight();
+    if (lines <= step.maxLines + 0.01) {
+      title = step;
+      break;
+    }
+  }
+  doc.font("BodyBold").fontSize(title.size);
+  const titleMax = Math.ceil(doc.currentLineHeight() * title.maxLines) + 2;
+  const titleHeight = Math.min(doc.heightOfString(input.eventName, { width: CONTENT_WIDTH }), titleMax);
+  doc
+    .fillColor("#ffffff")
+    .text(input.eventName, cardX + INSET, cardY + heroHeight - titleHeight - 18, {
+      width: CONTENT_WIDTH,
+      height: titleMax,
+      ellipsis: true,
+    });
+
+  // ── Date / heure / lieu ──
+  let y = cardY + heroHeight + 22;
+  const field = (label: string, value: string, x: number, width: number, maxHeight: number) => {
+    doc
+      .fillColor(MUTED)
+      .font("BodyBold")
+      .fontSize(7.5)
+      .text(label.toUpperCase(), x, y, { width, characterSpacing: 0.8 });
+    doc.fillColor(INK).font("BodyBold").fontSize(12.5);
+    const h = Math.min(doc.heightOfString(value, { width }), maxHeight);
+    doc.text(value, x, y + 12, { width, height: maxHeight, ellipsis: true });
+    return 12 + h;
+  };
+
+  const dateWidth = CONTENT_WIDTH * 0.64;
+  const timeX = cardX + INSET + CONTENT_WIDTH * 0.68;
+  const h1 = field("Date", input.dateLabel, cardX + INSET, dateWidth, 34);
+  const h2 = field("Heure", input.timeLabel, timeX, CONTENT_WIDTH * 0.32, 34);
+  y += Math.max(h1, h2) + 16;
+  const h3 = field("Lieu", input.location, cardX + INSET, CONTENT_WIDTH, 34);
+  y += h3 + 22;
+
+  // ── Perforation avec encoches ──
+  doc
+    .dash(4, { space: 4 })
+    .moveTo(cardX + 18, y)
+    .lineTo(cardX + CARD_WIDTH - 18, y)
+    .lineWidth(1)
+    .stroke(LINE)
+    .undash();
+  doc.circle(cardX, y, 11).fill(PAGE_BG);
+  doc.circle(cardX + CARD_WIDTH, y, 11).fill(PAGE_BG);
+  y += 24;
+
+  // ── QR code ──
+  const qrBoxSize = QR_SIZE + 20;
+  const qrBoxX = cardX + (CARD_WIDTH - qrBoxSize) / 2;
+  doc.roundedRect(qrBoxX, y, qrBoxSize, qrBoxSize, 12).lineWidth(1.5).stroke(LINE);
+  doc.image(assets.qr, qrBoxX + 10, y + 10, { width: QR_SIZE, height: QR_SIZE });
+  y += qrBoxSize + 16;
+
+  doc
+    .fillColor(INK)
+    .font("Courier-Bold")
+    .fontSize(14)
+    .text(input.code, cardX + INSET, y, { width: CONTENT_WIDTH, align: "center", characterSpacing: 1 });
+  y += 22;
+
+  const numberLabel =
+    input.ticketNumber !== undefined
+      ? `Billet n°${input.ticketNumber}${input.maxTickets ? ` / ${input.maxTickets}` : ""}`
+      : "";
+  doc
+    .fillColor(MUTED)
+    .font("Body")
+    .fontSize(10)
+    .text([input.participantName, numberLabel].filter(Boolean).join("   •   "), cardX + INSET, y, {
+      width: CONTENT_WIDTH,
+      height: 14,
+      align: "center",
+      ellipsis: true,
+    });
+  y += 26;
+
+  // ── Informations pratiques (facultatif) ──
+  const info = input.info?.trim();
+  if (info) {
+    doc.font("Body").fontSize(8.5);
+    const infoHeight = Math.min(doc.heightOfString(info, { width: CONTENT_WIDTH - 24 }), 46);
+    doc.roundedRect(cardX + INSET, y, CONTENT_WIDTH, infoHeight + 18, 10).fill("#f1f5f9");
+    doc.fillColor("#475569").text(info, cardX + INSET + 12, y + 9, {
+      width: CONTENT_WIDTH - 24,
+      height: 46,
+      align: "center",
+      ellipsis: true,
+    });
+    y += infoHeight + 18 + 16;
+  }
+
+  // ── Pied de billet ──
+  doc.font("Body").fontSize(7.5);
+  const terms = branding.eventTermsText;
+  const termsHeight = Math.min(doc.heightOfString(terms, { width: CONTENT_WIDTH }), 24);
+  doc.fillColor(MUTED).text(terms, cardX + INSET, y, {
+    width: CONTENT_WIDTH,
+    height: 24,
+    align: "center",
+    ellipsis: true,
+  });
+
+  return y + termsHeight;
 }
 
 /**
  * Génère le billet PDF en pur JS (pdfkit) : quelques dizaines de millisecondes,
- * sans navigateur headless.
+ * sans navigateur headless. La hauteur de la page s'ajuste au contenu.
  */
 export async function generateTicketPDF(input: TicketPDFInput): Promise<Buffer> {
-  const [clubLogo, poster] = await Promise.all([
+  const [logoBuf, posterBuf, qr] = await Promise.all([
     loadImage(branding.logoUrl),
     loadImage(input.posterUrl),
+    loadImage(input.qrCodeDataUrl),
   ]);
-  const qr = await loadImage(input.qrCodeDataUrl);
   if (!qr) throw new Error("QR code invalide");
 
-  const hasPoster = poster !== null;
-  const posterBlock = hasPoster ? POSTER_HEIGHT : 0;
+  const logo = inspectImage(logoBuf);
+  const poster = inspectImage(posterBuf);
+  const heroHeight = poster
+    ? Math.round(Math.min(HERO_MAX, Math.max(HERO_MIN, (CARD_WIDTH * poster.height) / poster.width)))
+    : HERO_WITHOUT_POSTER;
+  const assets: Assets = {
+    clubLogo: logo?.data ?? null,
+    poster: poster?.data ?? null,
+    heroHeight,
+    qr,
+  };
 
+  // Passe 1 : mesure de la hauteur du contenu sur une page provisoire très haute.
+  const probe = new PDFDocument({ size: [PAGE_WIDTH, 2400], margin: 0 });
+  probe.on("data", () => undefined);
+  setupFonts(probe);
+
+  const sanitize = createSanitizer(probe);
+  const clean: TicketPDFInput = {
+    ...input,
+    eventName: sanitize(input.eventName, "Projection"),
+    participantName: sanitize(input.participantName, "Participant"),
+    location: sanitize(input.location, "Lieu à venir"),
+    dateLabel: sanitize(input.dateLabel),
+    timeLabel: sanitize(input.timeLabel),
+    info: sanitize(input.info),
+  };
+
+  const contentBottom = drawTicket(probe, clean, assets, 2300);
+  probe.end();
+
+  const cardHeight = Math.ceil(contentBottom - PAD + 26);
+  const pageHeight = cardHeight + PAD * 2;
+
+  // Passe 2 : dessin définitif.
   const doc = new PDFDocument({
-    size: [PAGE_WIDTH, 600 + posterBlock],
+    size: [PAGE_WIDTH, pageHeight],
     margin: 0,
-    info: {
-      Title: `Billet — ${input.eventName}`,
-      Author: branding.appName,
-    },
+    info: { Title: `Billet — ${clean.eventName}`, Author: branding.appName },
   });
+  setupFonts(doc);
 
   const chunks: Buffer[] = [];
   const done = new Promise<Buffer>((resolve, reject) => {
@@ -116,118 +384,7 @@ export async function generateTicketPDF(input: TicketPDFInput): Promise<Buffer> 
     doc.on("error", reject);
   });
 
-  // Fond et carte blanche (les encoches de la perforation reprennent la couleur du fond)
-  doc.rect(0, 0, PAGE_WIDTH, doc.page.height).fill(PAGE_BG);
-  doc.rect(0, BAND_HEIGHT, PAGE_WIDTH, doc.page.height - BAND_HEIGHT).fill("#ffffff");
-
-  // Bandeau aux couleurs du club
-  doc.rect(0, 0, PAGE_WIDTH, BAND_HEIGHT).fill(branding.primaryColor);
-  doc.circle(MARGIN + 26, BAND_HEIGHT / 2, 28).fill("#ffffff");
-  drawImageSafe(doc, clubLogo, (buf) =>
-    doc.image(buf, MARGIN + 26 - 22, BAND_HEIGHT / 2 - 22, { fit: [44, 44], align: "center", valign: "center" }),
-  );
-  doc
-    .fillColor("#ffffff")
-    .font("Helvetica-Bold")
-    .fontSize(15)
-    .text(branding.appName, MARGIN + 66, BAND_HEIGHT / 2 - 9, {
-      width: CONTENT_WIDTH - 66,
-      height: 40,
-      ellipsis: true,
-    });
-
-  // Affiche
-  if (poster) {
-    doc.save();
-    doc.rect(0, BAND_HEIGHT, PAGE_WIDTH, POSTER_HEIGHT).clip();
-    drawImageSafe(doc, poster, (buf) =>
-      doc.image(buf, 0, BAND_HEIGHT, {
-        cover: [PAGE_WIDTH, POSTER_HEIGHT],
-        align: "center",
-        valign: "center",
-      }),
-    );
-    doc.restore();
-  }
-
-  // Titre
-  let y = BAND_HEIGHT + posterBlock + 20;
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(20);
-  const titleHeight = Math.min(
-    doc.heightOfString(input.eventName, { width: CONTENT_WIDTH }),
-    52,
-  );
-  doc.text(input.eventName, MARGIN, y, {
-    width: CONTENT_WIDTH,
-    height: 52,
-    ellipsis: true,
-  });
-  y += titleHeight + 12;
-
-  // Date / heure / lieu
-  const drawField = (label: string, value: string, x: number, width: number) => {
-    doc.fillColor(MUTED).font("Helvetica-Bold").fontSize(7.5).text(label.toUpperCase(), x, y, { width, characterSpacing: 0.6 });
-    doc.fillColor(INK).font("Helvetica").fontSize(12).text(value, x, y + 11, { width, height: 34, ellipsis: true });
-  };
-  drawField("Date", input.dateLabel, MARGIN, CONTENT_WIDTH * 0.62);
-  drawField("Heure", input.timeLabel, MARGIN + CONTENT_WIDTH * 0.66, CONTENT_WIDTH * 0.34);
-  y += 42;
-  drawField("Lieu", input.location, MARGIN, CONTENT_WIDTH);
-  y += 40;
-
-  // Perforation
-  doc.dash(4, { space: 4 }).moveTo(MARGIN + 8, y).lineTo(PAGE_WIDTH - MARGIN - 8, y).lineWidth(1).stroke(LINE).undash();
-  doc.circle(0, y, 9).fill(PAGE_BG);
-  doc.circle(PAGE_WIDTH, y, 9).fill(PAGE_BG);
-  y += 20;
-
-  // QR code + code
-  doc.roundedRect((PAGE_WIDTH - QR_SIZE - 16) / 2, y, QR_SIZE + 16, QR_SIZE + 16, 10).lineWidth(1.5).stroke(LINE);
-  doc.image(qr, (PAGE_WIDTH - QR_SIZE) / 2, y + 8, { width: QR_SIZE, height: QR_SIZE });
-  y += QR_SIZE + 28;
-
-  doc.fillColor(INK).font("Courier-Bold").fontSize(14).text(input.code, MARGIN, y, { width: CONTENT_WIDTH, align: "center" });
-  y += 20;
-
-  const numberLabel =
-    input.ticketNumber !== undefined
-      ? `Billet n°${input.ticketNumber}${input.maxTickets ? ` / ${input.maxTickets}` : ""}`
-      : "";
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica")
-    .fontSize(9.5)
-    .text([input.participantName, numberLabel].filter(Boolean).join("  •  "), MARGIN, y, {
-      width: CONTENT_WIDTH,
-      height: 14,
-      align: "center",
-      ellipsis: true,
-    });
-  y += 24;
-
-  // Informations pratiques
-  const info = input.info?.trim();
-  if (info) {
-    doc.fillColor(MUTED).font("Helvetica").fontSize(8).text(info, MARGIN, y, {
-      width: CONTENT_WIDTH,
-      height: 34,
-      align: "center",
-      ellipsis: true,
-    });
-  }
-
-  // Pied de billet
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica")
-    .fontSize(7.5)
-    .text(branding.eventTermsText, MARGIN, doc.page.height - 34, {
-      width: CONTENT_WIDTH,
-      height: 24,
-      align: "center",
-      ellipsis: true,
-    });
-
+  drawTicket(doc, clean, assets, cardHeight);
   doc.end();
   return done;
 }
