@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
 import { loadTicketForAdmin } from "@/server/auth/guards";
+import { recordAudit } from "@/server/audit/log";
 
 type Context = { params: Promise<{ ticketId: string }> };
 
@@ -25,6 +26,15 @@ export async function PATCH(req: Request, context: Context) {
       : { checkedIn: false, redeemedAt: null },
   });
 
+  if (count > 0) {
+    await recordAudit({
+      actor: access,
+      action: body.checkedIn ? "ticket.checkin" : "ticket.uncheckin",
+      event: access.ticket.event,
+      detail: access.ticket.participant.name,
+    });
+  }
+
   const ticket = await db.ticket.findUnique({ where: { id: ticketId } });
   return Response.json({
     changed: count > 0,
@@ -43,5 +53,11 @@ export async function DELETE(_req: Request, context: Context) {
   if ("response" in access) return access.response;
 
   await db.ticket.delete({ where: { id: ticketId } });
+  await recordAudit({
+    actor: access,
+    action: "ticket.cancel",
+    event: access.ticket.event,
+    detail: `${access.ticket.participant.name}${access.ticket.number ? ` (billet n°${access.ticket.number})` : ""}`,
+  });
   return Response.json({ success: true });
 }

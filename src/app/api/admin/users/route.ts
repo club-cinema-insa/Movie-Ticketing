@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
 import { isValidDiscordId } from "@/server/auth/access";
+import { recordAudit } from "@/server/audit/log";
 
 /**
  * GET /api/admin/users
@@ -86,6 +87,11 @@ export async function POST(req: Request) {
 
   const user = await db.user.create({
     data: { discordId, name: name || null },
+  });
+  await recordAudit({
+    actor: { userId: session.user.id, name: session.user.name ?? null },
+    action: "access.add",
+    detail: name || discordId,
   });
 
   return Response.json({ id: user.id }, { status: 201 });

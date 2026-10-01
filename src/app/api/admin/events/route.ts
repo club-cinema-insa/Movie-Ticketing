@@ -5,6 +5,7 @@ import { requireAdmin } from "@/server/auth/guards";
 import { createEventSchema, firstIssue } from "@/server/events/schema";
 import { discordConfigured } from "@/server/discord/client";
 import { announceSession } from "@/server/discord/sessions";
+import { recordAudit } from "@/server/audit/log";
 
 /** GET /api/admin/events : séances accessibles à l'admin connecté, avec réservations et présents. */
 export async function GET() {
@@ -59,6 +60,8 @@ export async function POST(req: Request) {
       createdById: admin.userId,
     },
   });
+
+  await recordAudit({ actor: admin, action: "event.create", event, detail: event.show ? "publiée" : "brouillon" });
 
   if (event.show) after(() => announceSession(event.id));
 

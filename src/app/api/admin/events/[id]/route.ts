@@ -3,9 +3,25 @@ import { db } from "@/server/db";
 import { loadEventForAdmin } from "@/server/auth/guards";
 import { firstIssue, updateEventSchema } from "@/server/events/schema";
 import { announceSession, removeSession, syncSession } from "@/server/discord/sessions";
+import { recordAudit } from "@/server/audit/log";
 
 /** Champs que la séance Discord reprend : leur modification déclenche une mise à jour. */
 const DISCORD_FIELDS = ["name", "date", "startOffsetMinutes", "location", "description"] as const;
+
+/** Champs suivis dans l'historique, avec leur libellé. */
+const AUDITED_FIELDS = {
+  name: "nom",
+  date: "date",
+  startOffsetMinutes: "heure de début",
+  location: "lieu",
+  description: "description",
+  image: "affiche",
+  maxTickets: "places",
+  announceEmojis: "emojis de l’annonce",
+} as const;
+
+const sameValue = (a: unknown, b: unknown) =>
+  a instanceof Date || b instanceof Date ? new Date(a as Date).getTime() === new Date(b as Date).getTime() : a === b;
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -36,6 +52,16 @@ export async function PUT(req: Request, context: Context) {
 
   const updated = await db.event.update({ where: { id }, data: parsed.data });
 
+  const changed = (Object.keys(AUDITED_FIELDS) as (keyof typeof AUDITED_FIELDS)[])
+    .filter((field) => parsed.data[field] !== undefined && !sameValue(parsed.data[field], access.event[field]))
+    .map((field) => AUDITED_FIELDS[field]);
+  if (changed.length > 0) {
+    await recordAudit({ actor: access, action: "event.update", event: updated, detail: changed.join(", ") });
+  }
+  if (parsed.data.show !== undefined && parsed.data.show !== access.event.show) {
+    await recordAudit({ actor: access, action: parsed.data.show ? "event.publish" : "event.unpublish", event: updated });
+  }
+
   if (updated.show && !updated.announcedAt) {
     after(() => announceSession(id));
   } else if (updated.discordEventId && DISCORD_FIELDS.some((field) => parsed.data[field] !== undefined)) {
@@ -51,10 +77,16 @@ export async function DELETE(_req: Request, context: Context) {
   const access = await loadEventForAdmin(id);
   if ("response" in access) return access.response;
 
-  await db.$transaction([
+  const [{ count: removedTickets }] = await db.$transaction([
     db.ticket.deleteMany({ where: { eventId: id } }),
     db.event.delete({ where: { id } }),
   ]);
+  await recordAudit({
+    actor: access,
+    action: "event.delete",
+    event: access.event,
+    detail: removedTickets > 0 ? `${removedTickets} réservation${removedTickets > 1 ? "s" : ""} supprimée${removedTickets > 1 ? "s" : ""}` : null,
+  });
 
   const { discordEventId } = access.event;
   if (discordEventId) after(() => removeSession(discordEventId));

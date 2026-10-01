@@ -7,6 +7,7 @@ import {
   parseRegistration,
 } from "@/server/tickets/issue";
 import { notifyIfFull } from "@/server/discord/sessions";
+import { recordAudit } from "@/server/audit/log";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -80,6 +81,7 @@ export async function POST(req: Request, context: Context) {
     return Response.json({ error: "Impossible de créer le billet." }, { status: 500 });
   }
 
+  await recordAudit({ actor: access, action: "ticket.add", event: access.event, detail: participant.name });
   after(() => notifyIfFull(access.event));
 
   return Response.json({ id: result.ticket.id, code: result.ticket.code }, { status: 201 });

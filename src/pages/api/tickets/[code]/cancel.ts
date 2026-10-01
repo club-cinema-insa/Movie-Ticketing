@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { db } from "@/server/db";
+import { recordAudit } from "@/server/audit/log";
 import { CANCEL_MESSAGES, cancelState, isValidCancelToken } from "@/server/tickets/cancel";
 
 // Même forme que le code du QR code.
@@ -26,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const ticket = await db.ticket.findUnique({ where: { code }, include: { event: true } });
+    const ticket = await db.ticket.findUnique({ where: { code }, include: { event: true, participant: true } });
     if (!ticket) {
       return res.status(404).json({ error: "Réservation introuvable ou déjà annulée." });
     }
@@ -41,6 +42,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (count === 0) {
       return res.status(409).json({ error: CANCEL_MESSAGES.used });
     }
+
+    await recordAudit({
+      action: "ticket.cancel_by_student",
+      event: ticket.event,
+      detail: `${ticket.participant.name}${ticket.number ? ` (billet n°${ticket.number})` : ""}`,
+    });
 
     return res.status(200).json({ success: true });
   } catch (error) {

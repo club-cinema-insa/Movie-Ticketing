@@ -101,3 +101,20 @@ model Ticket {
 
   @@unique([eventId, participantId])
 }
+
+/// Journal des actions du bureau (qui a fait quoi). Sans clé étrangère : l'historique survit à la
+/// suppression d'une séance ou d'un compte. Effacé après la durée de conservation (voir purge).
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  /// Membre du bureau à l'origine de l'action ; absent pour une action d'un étudiant.
+  actorId   String?
+  actorName String?
+  action    String
+  eventId   String?
+  eventName String?
+  detail    String?
+
+  @@index([createdAt])
+  @@index([eventId])
+}

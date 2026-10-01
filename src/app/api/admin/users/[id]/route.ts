@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
+import { recordAudit } from "@/server/audit/log";
 
 /**
  * DELETE /api/admin/users/[id]
@@ -44,6 +45,11 @@ export async function DELETE(
   }
 
   await db.user.delete({ where: { id } });
+  await recordAudit({
+    actor: { userId: session.user.id, name: session.user.name ?? null },
+    action: "access.remove",
+    detail: user.name ?? user.discordId ?? "compte sans nom",
+  });
 
   return Response.json({ success: true });
 }

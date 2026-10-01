@@ -13,6 +13,8 @@ export type PurgeReport = {
   anonymized: number;
   /** Participants sans billet (réservation annulée) créés avant la date limite. */
   deleted: number;
+  /** Entrées de l'historique des actions du bureau plus anciennes que la durée de conservation. */
+  auditDeleted: number;
 };
 
 export function retentionCutoff(now: Date, months = RETENTION_MONTHS): Date {
@@ -39,6 +41,9 @@ export async function purgeExpiredPersonalData(now = new Date(), dryRun = false)
     select: { id: true },
   });
 
+  const expiredAudit = { createdAt: { lt: cutoff } };
+  const auditDeleted = dryRun ? await db.auditLog.count({ where: expiredAudit }) : (await db.auditLog.deleteMany({ where: expiredAudit })).count;
+
   if (!dryRun) {
     for (let i = 0; i < toAnonymize.length; i += BATCH_SIZE) {
       await db.$transaction(
@@ -55,5 +60,5 @@ export async function purgeExpiredPersonalData(now = new Date(), dryRun = false)
     }
   }
 
-  return { cutoff: cutoff.toISOString(), dryRun, anonymized: toAnonymize.length, deleted: orphans.length };
+  return { cutoff: cutoff.toISOString(), dryRun, anonymized: toAnonymize.length, deleted: orphans.length, auditDeleted };
 }

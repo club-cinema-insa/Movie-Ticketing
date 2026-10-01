@@ -73,6 +73,10 @@ export default function PrivacyPage() {
             Votre nom et votre adresse e-mail sont effacés {RETENTION_MONTHS} mois après votre dernière séance. Seuls des
             chiffres anonymes subsistent (nombre de réservations et de présents par séance).
           </p>
+          <p>
+            Le journal des actions du bureau (qui a créé, modifié ou annulé quoi, avec le nom de la personne concernée) est effacé au
+            même rythme, après {RETENTION_MONTHS} mois.
+          </p>
           <p>Vous pouvez aussi annuler votre réservation vous-même depuis le lien reçu dans l’e-mail de votre billet.</p>
         </Section>
 

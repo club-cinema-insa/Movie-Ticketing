@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
-import { ChartColumn, Clapperboard, Globe, LogOut, ScanLine, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ChartColumn, Clapperboard, Globe, History, LogOut, ScanLine, ShieldCheck, type LucideIcon } from "lucide-react";
 import { branding } from "@/config/branding";
 import { SiteHead } from "@/components/layout/SiteHead";
 import { BrandMark } from "@/components/layout/PublicLayout";
@@ -17,8 +17,8 @@ const NAV: NavItem[] = [
   { href: "/admin/events", label: "Séances", icon: Clapperboard, matches: (p) => p.startsWith("/admin/events") },
   { href: "/verify", label: "Contrôle", icon: ScanLine, matches: (p) => p.startsWith("/verify") },
   { href: "/admin/stats", label: "Stats", icon: ChartColumn, matches: (p) => p.startsWith("/admin/stats") },
+  { href: "/admin/history", label: "Historique", icon: History, matches: (p) => p.startsWith("/admin/history") },
   { href: "/admin/users", label: "Accès", icon: ShieldCheck, matches: (p) => p.startsWith("/admin/users") },
-  { href: "/events", label: "Site", icon: Globe, matches: () => false },
 ];
 
 function initials(name?: string | null) {
@@ -132,6 +132,14 @@ function AdminShell({ children, title, width = "normal" }: AdminLayoutProps) {
                 {initials(userName)}
               </span>
             )}
+            <Link
+              href="/events"
+              aria-label="Voir le site"
+              title="Voir le site"
+              className="inline-flex size-10 items-center justify-center rounded-xl text-white/75 transition hover:bg-white/10 hover:text-white"
+            >
+              <Globe className="size-5" aria-hidden />
+            </Link>
             <button
               type="button"
               onClick={() => void signOut({ callbackUrl: "/events" })}
