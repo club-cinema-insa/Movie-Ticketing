@@ -1,0 +1,3 @@
+# Relais vers le site du club : les réseaux qui bloquent vercel.app laissent passer netlify.app.
+# Le « ! » force la règle même si un fichier du même nom existait sur Netlify.
+/*  https://clubcine.vercel.app/:splat  200!
