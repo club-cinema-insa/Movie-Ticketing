@@ -4,13 +4,15 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/alert";
 import { EventForm, emptyEventForm, eventFormToPayload, type EventFormValues } from "@/components/admin/EventForm";
-import { localDateTimeParts, nextSameWeekday } from "@/lib/eventTime";
+import { branding } from "@/config/branding";
+import { addMinutesToTime, localDateTimeParts, nextSameWeekday } from "@/lib/eventTime";
 
 type TemplateEvent = {
   name: string;
   date: string;
   location?: string | null;
   maxTickets?: number | null;
+  startOffsetMinutes?: number | null;
 };
 
 export default function NewEventPage() {
@@ -45,6 +47,12 @@ export default function NewEventPage() {
           ...current,
           date: keep(current.date, suggested?.date ?? ""),
           time: keep(current.time, parts.time),
+          startTime: keep(
+            current.startTime,
+            branding.startsAfterDoorsMinutes
+              ? (addMinutesToTime(parts.time, latest.startOffsetMinutes ?? branding.startsAfterDoorsMinutes) ?? "")
+              : "",
+          ),
           location: keep(current.location, latest.location ?? ""),
           maxTickets: keep(current.maxTickets, latest.maxTickets ? String(latest.maxTickets) : ""),
         }));

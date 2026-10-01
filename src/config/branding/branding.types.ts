@@ -22,6 +22,14 @@ export type BrandingConfig = {
   tagline?: string;
   emailSignature: string;
   eventTermsText: string;
+  /** Moyens de contacter le bureau (page de confidentialité : droits d'accès et d'effacement). */
+  contact?: {
+    email?: string;
+    discordUrl?: string;
+    instagramUrl?: string;
+    /** Affiché avec le lien Instagram, avec le « @ ». */
+    instagramHandle?: string;
+  };
   /**
    * Si défini, l'heure de l'événement est l'ouverture des portes et la séance commence
    * ce nombre de minutes plus tard. Absent : le billet affiche une simple « Heure ».

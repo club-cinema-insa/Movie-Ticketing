@@ -27,10 +27,10 @@ export const formatTime = (date: Date) => {
 };
 
 /** Heure de début de la séance, si le club distingue ouverture des portes et début. */
-export const startAfterDoors = (date: Date) =>
-  branding.startsAfterDoorsMinutes
-    ? new Date(date.getTime() + branding.startsAfterDoorsMinutes * 60_000)
-    : null;
+export const startAfterDoors = (event: Pick<Event, "date" | "startOffsetMinutes">) => {
+  const minutes = branding.startsAfterDoorsMinutes ? (event.startOffsetMinutes ?? branding.startsAfterDoorsMinutes) : 0;
+  return minutes ? new Date(event.date.getTime() + minutes * 60_000) : null;
+};
 
 /** Construit le PDF d'un billet existant. */
 export function buildTicketPDF(params: {
@@ -39,7 +39,7 @@ export function buildTicketPDF(params: {
   participant: Participant;
 }): Promise<Buffer> {
   const { ticket, event, participant } = params;
-  const start = startAfterDoors(event.date);
+  const start = startAfterDoors(event);
 
   return generateTicketPDF({
     participantName: participant.name,

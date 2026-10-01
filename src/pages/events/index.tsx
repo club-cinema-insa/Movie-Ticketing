@@ -17,6 +17,7 @@ type PublicEvent = {
   location: string | null;
   image: string | null;
   maxTickets: number | null;
+  startOffsetMinutes: number | null;
   issued: number;
 };
 
@@ -40,6 +41,7 @@ export const getServerSideProps: GetServerSideProps<{ events: PublicEvent[] }> =
         location: event.location,
         image: event.image,
         maxTickets: event.maxTickets,
+        startOffsetMinutes: event.startOffsetMinutes,
         issued: event._count.tickets,
       })),
     },
@@ -94,7 +96,7 @@ function Hero() {
 
 function EventCard({ event }: { event: PublicEvent }) {
   const badge = dateBadgeParts(event.date);
-  const schedule = eventSchedule(event.date);
+  const schedule = eventSchedule(event.date, event.startOffsetMinutes);
   const remaining = remainingSeats(event.maxTickets, event.issued);
   const full = remaining === 0;
   const href = `/events/${event.id}/register`;

@@ -72,6 +72,8 @@ model Event {
   logoUrl     String?
   image       String?
   maxTickets  Int?
+  /// Minutes entre l'ouverture des portes (date) et le début de la projection. Absent : valeur par défaut du club.
+  startOffsetMinutes Int?
   createdById String?
   createdBy   User?    @relation(fields: [createdById], references: [id])
   tickets     Ticket[]

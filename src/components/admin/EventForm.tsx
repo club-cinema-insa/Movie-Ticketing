@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
-import { startTimeLabel, toOffsetIso } from "@/lib/eventTime";
+import { addMinutesToTime, minutesBetween, toOffsetIso } from "@/lib/eventTime";
 
 export type EventFormValues = {
   name: string;
   date: string;
+  /** Ouverture des portes (« HH:mm »). */
   time: string;
+  /** Début de la projection (« HH:mm »), seulement si le club distingue portes et début. */
+  startTime: string;
   location: string;
   description: string;
   image: string;
@@ -24,6 +27,7 @@ export const emptyEventForm: EventFormValues = {
   name: "",
   date: "",
   time: "",
+  startTime: "",
   location: "",
   description: "",
   image: "",
@@ -39,6 +43,12 @@ export function validateEventForm(values: EventFormValues): Errors {
   if (!values.date) errors.date = "Choisissez une date.";
   if (!values.time) errors.time = "Indiquez l’heure.";
   if (values.date && values.time && !toOffsetIso(values.date, values.time)) errors.date = "Date ou heure invalide.";
+  if (branding.startsAfterDoorsMinutes && values.time) {
+    if (!values.startTime) errors.startTime = "Indiquez l’heure de début.";
+    else if ((minutesBetween(values.time, values.startTime) ?? 0) < 0) {
+      errors.startTime = "Le début doit être après l’ouverture des portes.";
+    }
+  }
   if (values.maxTickets) {
     const max = Number(values.maxTickets);
     if (!Number.isInteger(max) || max < 1) errors.maxTickets = "Saisissez un nombre entier supérieur à 0, ou laissez vide.";
@@ -57,6 +67,9 @@ export function eventFormToPayload(values: EventFormValues, options: { includeSh
     description: values.description.trim(),
     image: values.image.trim(),
     maxTickets: values.maxTickets ? parseInt(values.maxTickets, 10) : null,
+    ...(branding.startsAfterDoorsMinutes && values.startTime
+      ? { startOffsetMinutes: minutesBetween(values.time, values.startTime) }
+      : {}),
     ...(includeShow ? { show: values.show } : {}),
   };
 }
@@ -87,7 +100,6 @@ export function EventForm({
   const [previewFailed, setPreviewFailed] = useState(false);
 
   const doorsMinutes = branding.startsAfterDoorsMinutes;
-  const start = doorsMinutes && values.time ? startTimeLabel(values.time, doorsMinutes) : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +114,12 @@ export function EventForm({
   };
 
   const set = (patch: Partial<EventFormValues>) => {
+    // Changer l'ouverture des portes décale le début de la même durée (le délai choisi est conservé).
+    if (doorsMinutes && patch.time !== undefined && patch.startTime === undefined) {
+      const gap = minutesBetween(values.time, values.startTime) ?? doorsMinutes;
+      const shifted = addMinutesToTime(patch.time, gap);
+      if (shifted) patch = { ...patch, startTime: shifted };
+    }
     onChange(patch);
     if (patch.image !== undefined) setPreviewFailed(false);
     setErrors((current) => {
@@ -171,7 +189,7 @@ export function EventForm({
       <Card className="space-y-5 p-5 sm:p-6">
         <h2 className="text-lg font-bold">Date et lieu</h2>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className={`grid gap-5 ${doorsMinutes ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <Field label="Date" htmlFor="field-date" error={errors.date}>
             <Input
               id="field-date"
@@ -182,12 +200,7 @@ export function EventForm({
             />
           </Field>
 
-          <Field
-            label={doorsMinutes ? "Ouverture des portes" : "Heure"}
-            htmlFor="field-time"
-            error={errors.time}
-            hint={start ? `${branding.startLabel ?? "Début"} à ${start}.` : undefined}
-          >
+          <Field label={doorsMinutes ? "Ouverture des portes" : "Heure"} htmlFor="field-time" error={errors.time}>
             <Input
               id="field-time"
               type="time"
@@ -196,6 +209,18 @@ export function EventForm({
               aria-invalid={Boolean(errors.time)}
             />
           </Field>
+
+          {doorsMinutes ? (
+            <Field label={branding.startLabel ?? "Début"} htmlFor="field-startTime" error={errors.startTime}>
+              <Input
+                id="field-startTime"
+                type="time"
+                value={values.startTime}
+                onChange={(e) => set({ startTime: e.target.value })}
+                aria-invalid={Boolean(errors.startTime)}
+              />
+            </Field>
+          ) : null}
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">

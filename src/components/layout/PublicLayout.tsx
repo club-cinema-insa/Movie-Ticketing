@@ -49,10 +49,15 @@ export function PublicLayout({ children, title, description, image, noindex }: P
           <p>
             © {new Date().getFullYear()} {branding.appName}
           </p>
-          <Link href="/admin/events" className="inline-flex items-center gap-1.5 rounded-lg font-medium hover:text-white">
-            <Lock className="size-3.5" aria-hidden />
-            Espace bureau
-          </Link>
+          <nav aria-label="Liens du site" className="flex items-center gap-5 font-medium">
+            <Link href="/confidentialite" className="rounded-lg hover:text-white">
+              Confidentialité
+            </Link>
+            <Link href="/admin/events" className="inline-flex items-center gap-1.5 rounded-lg hover:text-white">
+              <Lock className="size-3.5" aria-hidden />
+              Espace bureau
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

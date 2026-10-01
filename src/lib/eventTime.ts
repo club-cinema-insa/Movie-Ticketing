@@ -1,12 +1,24 @@
-/** Ajoute des minutes à une heure « HH:mm » et la formate à la française (« 20h », « 20h05 »). */
-export function startTimeLabel(time: string, minutesAfter: number): string | null {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(time);
-  if (!match) return null;
+const TIME_PATTERN = /^(\d{1,2}):(\d{2})$/;
 
-  const total = (Number(match[1]) * 60 + Number(match[2]) + minutesAfter) % (24 * 60);
-  const hours = Math.floor(total / 60);
-  const minutes = total % 60;
-  return minutes === 0 ? `${hours}h` : `${hours}h${String(minutes).padStart(2, "0")}`;
+/** Minutes depuis minuit d'une heure « HH:mm », ou null si elle est invalide. */
+function minutesOfDay(time: string): number | null {
+  const match = TIME_PATTERN.exec(time);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+/** Minutes entre deux heures « HH:mm » du même jour (négatif si `to` précède `from`), ou null. */
+export function minutesBetween(from: string, to: string): number | null {
+  const start = minutesOfDay(from);
+  const end = minutesOfDay(to);
+  return start === null || end === null ? null : end - start;
+}
+
+/** Ajoute des minutes à une heure « HH:mm » (même jour, plafonné à 23:59), ou null si elle est invalide. */
+export function addMinutesToTime(time: string, minutes: number): string | null {
+  const start = minutesOfDay(time);
+  if (start === null) return null;
+  const total = Math.min(Math.max(start + minutes, 0), 24 * 60 - 1);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 const pad2 = (value: number) => value.toString().padStart(2, "0");

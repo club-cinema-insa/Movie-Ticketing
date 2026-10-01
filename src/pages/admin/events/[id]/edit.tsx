@@ -8,7 +8,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PageSpinner } from "@/components/ui/spinner";
 import { EventForm, emptyEventForm, eventFormToPayload, type EventFormValues } from "@/components/admin/EventForm";
-import { localDateTimeParts } from "@/lib/eventTime";
+import { branding } from "@/config/branding";
+import { addMinutesToTime, localDateTimeParts } from "@/lib/eventTime";
 
 type EventResponse = {
   id: string;
@@ -18,6 +19,7 @@ type EventResponse = {
   description: string | null;
   image: string | null;
   maxTickets: number | null;
+  startOffsetMinutes: number | null;
   show: boolean;
   totalTickets?: number;
   checkedInCount?: number;
@@ -52,6 +54,10 @@ export default function EditEventPage() {
           name: data.name,
           date: parts?.date ?? "",
           time: parts?.time ?? "",
+          startTime:
+            parts && branding.startsAfterDoorsMinutes
+              ? (addMinutesToTime(parts.time, data.startOffsetMinutes ?? branding.startsAfterDoorsMinutes) ?? "")
+              : "",
           location: data.location ?? "",
           description: data.description ?? "",
           image: data.image ?? "",

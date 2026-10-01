@@ -22,7 +22,7 @@ type TicketPageProps =
   | {
       state: "ok";
       ticket: { code: string; number: number | null; qrCode: string; participantName: string };
-      event: { id: string; name: string; date: string; location: string | null };
+      event: { id: string; name: string; date: string; location: string | null; startOffsetMinutes: number | null };
       /** Jeton d'annulation, présent seulement s'il est valide. */
       token: string | null;
       /** Motif pour lequel l'annulation n'est plus possible (billet utilisé, séance commencée). */
@@ -63,6 +63,7 @@ export const getServerSideProps: GetServerSideProps<TicketPageProps> = async (ct
         name: ticket.event.name,
         date: ticket.event.date.toISOString(),
         location: ticket.event.location,
+        startOffsetMinutes: ticket.event.startOffsetMinutes,
       },
       token,
       cancelBlocked: token && state !== "allowed" ? CANCEL_MESSAGES[state] : null,
@@ -98,7 +99,7 @@ export default function TicketPage(props: TicketPageProps) {
   if (props.state === "gone") return <Gone />;
   const { ticket, event, token, cancelBlocked } = props;
 
-  const schedule = eventSchedule(event.date);
+  const schedule = eventSchedule(event.date, event.startOffsetMinutes);
 
   if (cancelled) {
     return (

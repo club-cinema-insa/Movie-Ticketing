@@ -19,6 +19,12 @@ const brandingClubCine: BrandingConfig = {
   tagline: "Réservez gratuitement votre place pour les prochaines séances.",
   emailSignature: "L’équipe du Club Ciné INSA",
   eventTermsText: "Les séances sont réservées aux étudiants INSA.",
+  contact: {
+    email: "club.dvdtek@amicale-insat.fr",
+    discordUrl: "https://discord.gg/QBkzwSQ3tg",
+    instagramUrl: "https://www.instagram.com/club_cinema_insa/",
+    instagramHandle: "@club_cinema_insa",
+  },
   startsAfterDoorsMinutes: 15,
   startLabel: "Début de la projection",
 };

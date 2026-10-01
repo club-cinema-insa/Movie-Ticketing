@@ -34,9 +34,33 @@ Variables obligatoires : `DATABASE_URL`, `AUTH_SECRET`, `AUTH_DISCORD_ID`, `AUTH
 npm run check   # ESLint + TypeScript (le build échoue aussi en cas d’erreur)
 ```
 
+GitHub Actions rejoue cette vérification et le build à chaque envoi (`.github/workflows/ci.yml`).
+
 ## Déploiement
 
 Vercel, région `cdg1` (Paris), branche `main` uniquement (`vercel.json`). `NEXT_PUBLIC_BRAND=clubcine` pour l’identité du club.
+
+## Données personnelles
+
+- La page `/confidentialite` explique ce qui est collecté (nom, e-mail) et pour combien de temps.
+- Chaque lundi à 3 h, Vercel appelle `/api/cron/purge` : les participants dont toutes les séances datent de plus de `RETENTION_MONTHS` (`src/config/retention.ts`, 12 mois) sont anonymisés. Leurs billets restent, donc les statistiques aussi. Les participants sans billet (réservation annulée) sont supprimés après le même délai.
+- Pour l’activer : définir `CRON_SECRET` (16 caractères minimum) dans les variables d’environnement Vercel. Sans lui, la route refuse tout appel.
+- Pour voir ce qui serait effacé sans rien modifier : `curl -H "Authorization: Bearer $CRON_SECRET" "https://<site>/api/cron/purge?dryRun=1"`.
+
+## Sauvegardes
+
+Chaque dimanche, GitHub Actions exporte les données de l’application, les chiffre et les conserve 90 jours (`.github/workflows/backup.yml`, onglet Actions, artefact `sauvegarde-chiffree`). Le dépôt étant public, rien n’est stocké en clair.
+
+Secrets à créer dans GitHub (Settings, Secrets and variables, Actions) :
+
+- `BACKUP_DATABASE_URL` : chaîne de connexion « Session pooler » de Supabase (le serveur d’exécution GitHub n’est pas en IPv6).
+- `BACKUP_PASSPHRASE` : mot de passe de chiffrement. À garder dans un gestionnaire de mots de passe : sans lui, la sauvegarde est inutilisable.
+
+Les sessions et jetons de connexion ne sont pas sauvegardés. Pour restaurer :
+
+```bash
+gpg --decrypt sauvegarde-AAAA-MM-JJ.dump.gpg | pg_restore --no-owner --clean --if-exists -d "<chaîne de connexion>"
+```
 
 ## Licence
 

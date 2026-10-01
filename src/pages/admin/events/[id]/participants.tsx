@@ -303,7 +303,7 @@ function ParticipantsContent() {
         <Card className="mb-4 p-4 sm:p-5">
           <form onSubmit={addParticipant} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nom et prénom" htmlFor="add-name">
+              <Field label="Nom" htmlFor="add-name">
                 <Input id="add-name" value={addName} onChange={(e) => setAddName(e.target.value)} required maxLength={100} autoComplete="off" />
               </Field>
               <Field label="Adresse e-mail" htmlFor="add-email">

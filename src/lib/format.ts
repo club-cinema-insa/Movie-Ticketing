@@ -46,10 +46,14 @@ export function dateBadgeParts(iso: string | Date): { weekday: string; day: stri
 
 /**
  * Horaires d'une projection : si le club distingue ouverture des portes et début,
- * l'heure enregistrée est l'ouverture des portes.
+ * l'heure enregistrée est l'ouverture des portes et le début se règle séance par séance
+ * (`startOffsetMinutes`, sinon le délai habituel du club).
  */
-export function eventSchedule(iso: string | Date): { doors: string | null; start: string; startLabel: string } {
-  const minutes = branding.startsAfterDoorsMinutes;
+export function eventSchedule(
+  iso: string | Date,
+  startOffsetMinutes?: number | null,
+): { doors: string | null; start: string; startLabel: string } {
+  const minutes = branding.startsAfterDoorsMinutes ? (startOffsetMinutes ?? branding.startsAfterDoorsMinutes) : 0;
   if (!minutes) return { doors: null, start: formatTime(iso), startLabel: "Heure" };
 
   const start = new Date(new Date(iso).getTime() + minutes * 60_000);

@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return Response.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
-  const { name, date, location, description, image, maxTickets, show } = parsed.data;
+  const { name, date, location, description, image, maxTickets, startOffsetMinutes, show } = parsed.data;
 
   const event = await db.event.create({
     data: {
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
       description,
       image,
       maxTickets,
+      startOffsetMinutes,
       show: show === true,
       createdById: admin.userId,
     },

@@ -48,6 +48,7 @@ const fields = {
   description: optionalText(5000),
   image: imageUrl,
   maxTickets,
+  startOffsetMinutes: z.number().int().min(0, "Le début doit être après l’ouverture des portes.").max(720).nullable(),
   show: z.boolean(),
 };
 
@@ -58,6 +59,7 @@ export const createEventSchema = z.object({
   description: fields.description.optional(),
   image: fields.image.optional(),
   maxTickets: fields.maxTickets.optional(),
+  startOffsetMinutes: fields.startOffsetMinutes.optional(),
   show: fields.show.optional(),
 });
 

@@ -15,7 +15,7 @@ const escapeHtml = (value: string) =>
 type Row = { label: string; value: string };
 
 function scheduleRows(event: Event): Row[] {
-  const start = startAfterDoors(event.date);
+  const start = startAfterDoors(event);
   const rows: Row[] = [{ label: "Date", value: formatDate(event.date) }];
 
   if (start) {

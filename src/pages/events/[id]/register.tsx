@@ -36,6 +36,7 @@ type EventPageProps = {
     description: string | null;
     image: string | null;
     maxTickets: number | null;
+    startOffsetMinutes: number | null;
     issued: number;
   } | null;
 };
@@ -78,6 +79,7 @@ export const getServerSideProps: GetServerSideProps<EventPageProps> = async (ctx
         description: event.description,
         image: event.image,
         maxTickets: event.maxTickets,
+        startOffsetMinutes: event.startOffsetMinutes,
         issued: event._count.tickets,
       },
     },
@@ -135,7 +137,7 @@ export default function RegisterPage({ event }: EventPageProps) {
     );
   }
 
-  const schedule = eventSchedule(event.date);
+  const schedule = eventSchedule(event.date, event.startOffsetMinutes);
   const remaining = remainingSeats(event.maxTickets, event.issued);
   const full = remaining === 0;
 
@@ -299,7 +301,7 @@ export default function RegisterPage({ event }: EventPageProps) {
                   </p>
 
                   <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-                    <Field label="Nom et prénom" htmlFor="name">
+                    <Field label="Nom" htmlFor="name">
                       <Input
                         id="name"
                         name="name"
@@ -310,7 +312,7 @@ export default function RegisterPage({ event }: EventPageProps) {
                         maxLength={100}
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Camille Dupont"
+                        placeholder="Ousmane Dembélé"
                       />
                     </Field>
 
@@ -326,7 +328,7 @@ export default function RegisterPage({ event }: EventPageProps) {
                         maxLength={254}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="camille@exemple.fr"
+                        placeholder="ousmaneballondor@gmail.com"
                       />
                     </Field>
 
@@ -336,6 +338,13 @@ export default function RegisterPage({ event }: EventPageProps) {
                       {!loading && <Ticket aria-hidden />}
                       {loading ? "Réservation en cours" : full ? "Retrouver mon billet" : "Réserver ma place"}
                     </Button>
+
+                    <p className="text-center text-xs text-subtle">
+                      Vos données ne servent qu’à émettre votre billet.{" "}
+                      <Link href="/confidentialite" className="font-medium underline underline-offset-2 hover:text-ink">
+                        En savoir plus
+                      </Link>
+                    </p>
                   </form>
                 </Card>
               )}

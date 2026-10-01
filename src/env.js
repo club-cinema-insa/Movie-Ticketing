@@ -19,6 +19,8 @@ export const env = createEnv({
     INITIAL_ADMIN_DISCORD_IDS: z.string().optional(),
     // "true" : tous les admins autorisés voient, modifient et contrôlent tous les événements.
     ADMIN_SHARED_EVENTS: z.enum(["true", "false"]).optional(),
+    // Secret partagé avec les tâches planifiées de Vercel (purge hebdomadaire des données personnelles).
+    CRON_SECRET: z.string().min(16).optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -44,6 +46,7 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     INITIAL_ADMIN_DISCORD_IDS: process.env.INITIAL_ADMIN_DISCORD_IDS,
     ADMIN_SHARED_EVENTS: process.env.ADMIN_SHARED_EVENTS,
+    CRON_SECRET: process.env.CRON_SECRET,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**
