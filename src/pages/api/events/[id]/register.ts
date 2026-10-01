@@ -11,6 +11,7 @@ import { buildTicketPDF } from "@/server/utils/ticketDocument";
 import { manageTicketPath } from "@/server/tickets/cancel";
 import { buildTicketEmail } from "@/server/utils/ticketEmail";
 import { branding } from "@/config/branding";
+import { notifyIfFull } from "@/server/discord/sessions";
 
 /** Envoie le billet par email. Ne lève jamais d'exception : une panne SMTP n'annule pas la réservation. */
 async function sendTicketEmail(params: {
@@ -103,7 +104,11 @@ export default async function handler(
     const { ticket } = result;
     const reused = result.kind === "existing";
 
-    const emailSent = await sendTicketEmail({ participant, event, ticket, reused });
+    // L'e-mail et l'alerte « complet » partent en parallèle : l'alerte ne ralentit pas la réponse.
+    const [emailSent] = await Promise.all([
+      sendTicketEmail({ participant, event, ticket, reused }),
+      reused ? undefined : notifyIfFull(event),
+    ]);
 
     return res.status(200).json({
       success: true,

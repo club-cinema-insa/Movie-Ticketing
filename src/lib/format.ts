@@ -60,6 +60,12 @@ export function eventSchedule(
   return { doors: formatTime(iso), start: formatTime(start), startLabel: branding.startLabel ?? "Début" };
 }
 
+/** Début réel de la projection (ouverture des portes + délai de la séance), ou la date elle-même sans délai. */
+export function eventStartDate(date: Date, startOffsetMinutes?: number | null): Date {
+  const minutes = branding.startsAfterDoorsMinutes ? (startOffsetMinutes ?? branding.startsAfterDoorsMinutes) : 0;
+  return new Date(date.getTime() + minutes * 60_000);
+}
+
 /** Places restantes, ou null quand la capacité est illimitée. */
 export function remainingSeats(maxTickets: number | null | undefined, issued: number): number | null {
   return maxTickets ? Math.max(0, maxTickets - issued) : null;

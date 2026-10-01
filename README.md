@@ -62,6 +62,18 @@ Les sessions et jetons de connexion ne sont pas sauvegardés. Pour restaurer :
 gpg --decrypt sauvegarde-AAAA-MM-JJ.dump.gpg | pg_restore --no-owner --clean --if-exists -d "<chaîne de connexion>"
 ```
 
+## Annonces Discord
+
+Quand une séance est publiée pour la première fois, le site crée une séance Discord (affiche, date, lieu) et poste dans le salon des annonces un message avec @everyone et le lien de cette séance. Modifier ou supprimer la séance met à jour ou supprime la séance Discord. Quand le dernier billet d'une séance est pris, une alerte (sans donnée personnelle) part dans un salon privé du bureau. Une panne de Discord n'empêche jamais de publier ou de réserver.
+
+Mise en place (gratuite) :
+
+1. Sur [discord.com/developers/applications](https://discord.com/developers/applications), créer une application, puis dans « Bot » générer un jeton (à copier tout de suite).
+2. Inviter le bot sur le serveur : `https://discord.com/oauth2/authorize?client_id=<ID de l'application>&scope=bot&permissions=17600776129536` (voir les salons, envoyer des messages, intégrer des liens, mentionner @everyone, gérer et créer des événements).
+3. Dans Discord (Paramètres, Avancés), activer le mode développeur, puis clic droit sur le serveur et sur les salons, « Copier l'identifiant ».
+4. Dans Vercel, définir `DISCORD_BOT_TOKEN` (cocher Sensitive), `DISCORD_GUILD_ID`, `DISCORD_ANNOUNCE_CHANNEL_ID` et, pour les alertes, `DISCORD_STAFF_CHANNEL_ID`, puis redéployer.
+5. Vérifier que le bot a accès aux deux salons (surtout le salon privé du bureau).
+
 ## Licence
 
 MIT, voir [LICENSE](./LICENSE).

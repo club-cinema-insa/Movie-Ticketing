@@ -21,6 +21,12 @@ export const env = createEnv({
     ADMIN_SHARED_EVENTS: z.enum(["true", "false"]).optional(),
     // Secret partagé avec les tâches planifiées de Vercel (purge hebdomadaire des données personnelles).
     CRON_SECRET: z.string().min(16).optional(),
+    // Annonces Discord (facultatif) : jeton du bot du club, serveur et salons.
+    DISCORD_BOT_TOKEN: z.string().optional(),
+    DISCORD_GUILD_ID: z.string().optional(),
+    DISCORD_ANNOUNCE_CHANNEL_ID: z.string().optional(),
+    DISCORD_STAFF_CHANNEL_ID: z.string().optional(),
+    DISCORD_API_BASE: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -47,6 +53,11 @@ export const env = createEnv({
     INITIAL_ADMIN_DISCORD_IDS: process.env.INITIAL_ADMIN_DISCORD_IDS,
     ADMIN_SHARED_EVENTS: process.env.ADMIN_SHARED_EVENTS,
     CRON_SECRET: process.env.CRON_SECRET,
+    DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
+    DISCORD_GUILD_ID: process.env.DISCORD_GUILD_ID,
+    DISCORD_ANNOUNCE_CHANNEL_ID: process.env.DISCORD_ANNOUNCE_CHANNEL_ID,
+    DISCORD_STAFF_CHANNEL_ID: process.env.DISCORD_STAFF_CHANNEL_ID,
+    DISCORD_API_BASE: process.env.DISCORD_API_BASE,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**

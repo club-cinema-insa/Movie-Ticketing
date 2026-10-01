@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { db } from "@/server/db";
 import { loadEventForAdmin } from "@/server/auth/guards";
 import {
@@ -5,6 +6,7 @@ import {
   findOrCreateTicket,
   parseRegistration,
 } from "@/server/tickets/issue";
+import { notifyIfFull } from "@/server/discord/sessions";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -77,6 +79,8 @@ export async function POST(req: Request, context: Context) {
   if (result.kind !== "created") {
     return Response.json({ error: "Impossible de créer le billet." }, { status: 500 });
   }
+
+  after(() => notifyIfFull(access.event));
 
   return Response.json({ id: result.ticket.id, code: result.ticket.code }, { status: 201 });
 }

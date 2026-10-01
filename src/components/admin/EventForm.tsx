@@ -18,6 +18,7 @@ export type EventFormValues = {
   startTime: string;
   location: string;
   description: string;
+  announceEmojis: string;
   image: string;
   maxTickets: string;
   show: boolean;
@@ -30,6 +31,7 @@ export const emptyEventForm: EventFormValues = {
   startTime: "",
   location: "",
   description: "",
+  announceEmojis: "",
   image: "",
   maxTickets: "",
   show: false,
@@ -65,6 +67,7 @@ export function eventFormToPayload(values: EventFormValues, options: { includeSh
     date: toOffsetIso(values.date, values.time),
     location: values.location.trim(),
     description: values.description.trim(),
+    announceEmojis: values.announceEmojis.trim(),
     image: values.image.trim(),
     maxTickets: values.maxTickets ? parseInt(values.maxTickets, 10) : null,
     ...(branding.startsAfterDoorsMinutes && values.startTime
@@ -152,7 +155,7 @@ export function EventForm({
           htmlFor="field-image"
           error={errors.image}
           optional
-          hint="Adresse d’une image PNG ou JPEG. Elle s’affiche sur le site et sur le billet."
+          hint="Adresse d’une image PNG ou JPEG. Elle s’affiche sur le site, sur le billet et dans la séance Discord."
         >
           <Input
             id="field-image"
@@ -271,13 +274,29 @@ export function EventForm({
           />
         </Field>
 
+        <Field
+          label="Emojis de l’annonce Discord"
+          htmlFor="field-announceEmojis"
+          optional
+          hint="Quelques emojis qui évoquent le film, ajoutés à la fin de l’annonce. Sans choix : claquette et pop-corn."
+        >
+          <Input
+            id="field-announceEmojis"
+            value={values.announceEmojis}
+            onChange={(e) => set({ announceEmojis: e.target.value })}
+            maxLength={40}
+            autoComplete="off"
+            placeholder=":european_castle::sparkles:"
+          />
+        </Field>
+
         {showPublishSwitch && (
           <Switch
             id="field-show"
             checked={values.show}
             onCheckedChange={(show) => set({ show })}
             label="Publier tout de suite"
-            hint="Sinon la séance reste en brouillon, invisible du public, jusqu’à sa publication."
+            hint="Sinon la séance reste en brouillon, invisible du public, jusqu’à sa publication. La publication déclenche l’annonce sur Discord quand elle est configurée."
           />
         )}
       </Card>

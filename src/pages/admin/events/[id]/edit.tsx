@@ -17,6 +17,7 @@ type EventResponse = {
   date: string;
   location: string | null;
   description: string | null;
+  announceEmojis: string | null;
   image: string | null;
   maxTickets: number | null;
   startOffsetMinutes: number | null;
@@ -60,6 +61,7 @@ export default function EditEventPage() {
               : "",
           location: data.location ?? "",
           description: data.description ?? "",
+          announceEmojis: data.announceEmojis ?? "",
           image: data.image ?? "",
           maxTickets: data.maxTickets ? String(data.maxTickets) : "",
           show: data.show,

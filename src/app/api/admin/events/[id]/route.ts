@@ -1,6 +1,11 @@
+import { after } from "next/server";
 import { db } from "@/server/db";
 import { loadEventForAdmin } from "@/server/auth/guards";
 import { firstIssue, updateEventSchema } from "@/server/events/schema";
+import { announceSession, removeSession, syncSession } from "@/server/discord/sessions";
+
+/** Champs que la séance Discord reprend : leur modification déclenche une mise à jour. */
+const DISCORD_FIELDS = ["name", "date", "startOffsetMinutes", "location", "description"] as const;
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -30,6 +35,13 @@ export async function PUT(req: Request, context: Context) {
   }
 
   const updated = await db.event.update({ where: { id }, data: parsed.data });
+
+  if (updated.show && !updated.announcedAt) {
+    after(() => announceSession(id));
+  } else if (updated.discordEventId && DISCORD_FIELDS.some((field) => parsed.data[field] !== undefined)) {
+    after(() => syncSession(id));
+  }
+
   return Response.json(updated);
 }
 
@@ -43,6 +55,9 @@ export async function DELETE(_req: Request, context: Context) {
     db.ticket.deleteMany({ where: { eventId: id } }),
     db.event.delete({ where: { id } }),
   ]);
+
+  const { discordEventId } = access.event;
+  if (discordEventId) after(() => removeSession(discordEventId));
 
   return Response.json({ success: true });
 }

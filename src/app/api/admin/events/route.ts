@@ -1,7 +1,10 @@
+import { after } from "next/server";
 import { db } from "@/server/db";
 import { eventAccessWhere } from "@/server/auth/access";
 import { requireAdmin } from "@/server/auth/guards";
 import { createEventSchema, firstIssue } from "@/server/events/schema";
+import { discordConfigured } from "@/server/discord/client";
+import { announceSession } from "@/server/discord/sessions";
 
 /** GET /api/admin/events : séances accessibles à l'admin connecté, avec réservations et présents. */
 export async function GET() {
@@ -22,7 +25,12 @@ export async function GET() {
   const checkedInByEvent = new Map(checkedInCounts.map((entry) => [entry.eventId, entry._count._all]));
 
   return Response.json(
-    events.map((event) => ({ ...event, checkedInCount: checkedInByEvent.get(event.id) ?? 0 })),
+    events.map((event) => ({
+      ...event,
+      checkedInCount: checkedInByEvent.get(event.id) ?? 0,
+      // Publier enverra une annonce Discord (à confirmer côté interface).
+      canAnnounce: discordConfigured() && !event.announcedAt,
+    })),
   );
 }
 
@@ -35,7 +43,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return Response.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
-  const { name, date, location, description, image, maxTickets, startOffsetMinutes, show } = parsed.data;
+  const { name, date, location, description, announceEmojis, image, maxTickets, startOffsetMinutes, show } = parsed.data;
 
   const event = await db.event.create({
     data: {
@@ -43,6 +51,7 @@ export async function POST(req: Request) {
       date,
       location,
       description,
+      announceEmojis,
       image,
       maxTickets,
       startOffsetMinutes,
@@ -50,6 +59,8 @@ export async function POST(req: Request) {
       createdById: admin.userId,
     },
   });
+
+  if (event.show) after(() => announceSession(event.id));
 
   return Response.json(event);
 }

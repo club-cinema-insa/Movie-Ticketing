@@ -36,6 +36,8 @@ type AdminEvent = {
   show: boolean;
   maxTickets: number | null;
   checkedInCount?: number;
+  /** Publier enverra une annonce sur Discord. */
+  canAnnounce?: boolean;
   _count: { tickets: number };
 };
 
@@ -178,6 +180,7 @@ function DashboardContent() {
   const [error, setError] = useState("");
   const [toDelete, setToDelete] = useState<AdminEvent | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [toPublish, setToPublish] = useState<AdminEvent | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -192,6 +195,12 @@ function DashboardContent() {
   useEffect(() => {
     if (status === "authenticated") void load();
   }, [status, load]);
+
+  // Publier une séance non encore annoncée envoie un message avec @everyone : on demande confirmation.
+  const requestToggle = (event: AdminEvent) => {
+    if (!event.show && event.canAnnounce) setToPublish(event);
+    else void toggleVisibility(event);
+  };
 
   const toggleVisibility = async (event: AdminEvent) => {
     const next = !event.show;
@@ -283,7 +292,7 @@ function DashboardContent() {
           <ul className="space-y-4">
             {upcoming.map((event) => (
               <li key={event.id}>
-                <EventRow event={event} onToggle={toggleVisibility} onDelete={setToDelete} />
+                <EventRow event={event} onToggle={requestToggle} onDelete={setToDelete} />
               </li>
             ))}
           </ul>
@@ -302,12 +311,27 @@ function DashboardContent() {
           <ul className="mt-4 space-y-4">
             {past.map((event) => (
               <li key={event.id}>
-                <EventRow event={event} onToggle={toggleVisibility} onDelete={setToDelete} compact />
+                <EventRow event={event} onToggle={requestToggle} onDelete={setToDelete} compact />
               </li>
             ))}
           </ul>
         </details>
       )}
+
+      <ConfirmDialog
+        open={toPublish !== null}
+        onOpenChange={(open) => !open && setToPublish(null)}
+        title={toPublish ? `Publier « ${toPublish.name} » ?` : ""}
+        description="La séance devient visible sur le site et une annonce avec @everyone est envoyée sur Discord. Cette annonce n’est envoyée qu’une fois."
+        confirmLabel="Publier et annoncer"
+        cancelLabel="Pas maintenant"
+        tone="primary"
+        onConfirm={() => {
+          const event = toPublish;
+          setToPublish(null);
+          if (event) void toggleVisibility(event);
+        }}
+      />
 
       <ConfirmDialog
         open={toDelete !== null}

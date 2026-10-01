@@ -74,6 +74,12 @@ model Event {
   maxTickets  Int?
   /// Minutes entre l'ouverture des portes (date) et le début de la projection. Absent : valeur par défaut du club.
   startOffsetMinutes Int?
+  /// Annonce Discord déjà envoyée (évite les doublons quand on dépublie puis republie).
+  announcedAt        DateTime?
+  /// Séance Discord créée pour cette séance (mise à jour et suppression automatiques).
+  discordEventId     String?
+  /// Emojis qui évoquent le film, ajoutés à la fin de l'annonce Discord.
+  announceEmojis     String?
   createdById String?
   createdBy   User?    @relation(fields: [createdById], references: [id])
   tickets     Ticket[]
