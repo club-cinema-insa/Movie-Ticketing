@@ -3,6 +3,7 @@ import { env } from "@/env";
 import { db } from "@/server/db";
 import { eventStartDate } from "@/lib/format";
 import { siteUrl } from "@/server/utils/siteUrl";
+import { hostedPosterId, loadHostedPoster } from "@/server/posters/store";
 import {
   createScheduledEvent,
   deleteScheduledEvent,
@@ -29,6 +30,10 @@ const bookingUrl = (eventId: string) => {
 
 /** Affiche → data URL pour la couverture de la séance Discord ; null si elle est absente ou inutilisable. */
 async function coverImage(url: string | null): Promise<string | null> {
+  if (hostedPosterId(url)) {
+    const hosted = await loadHostedPoster(url!);
+    return hosted && hosted.data.length <= MAX_IMAGE_BYTES ? `data:${hosted.contentType};base64,${hosted.data.toString("base64")}` : null;
+  }
   if (!url || !/^https?:\/\//i.test(url)) return null;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS) });

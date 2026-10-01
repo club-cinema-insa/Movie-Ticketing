@@ -4,6 +4,7 @@ import { loadEventForAdmin } from "@/server/auth/guards";
 import { firstIssue, updateEventSchema } from "@/server/events/schema";
 import { announceSession, removeSession, syncSession } from "@/server/discord/sessions";
 import { recordAudit } from "@/server/audit/log";
+import { deleteHostedPoster } from "@/server/posters/store";
 
 /** Champs que la séance Discord reprend : leur modification déclenche une mise à jour. */
 const DISCORD_FIELDS = ["name", "date", "startOffsetMinutes", "location", "description"] as const;
@@ -52,6 +53,11 @@ export async function PUT(req: Request, context: Context) {
 
   const updated = await db.event.update({ where: { id }, data: parsed.data });
 
+  // L'ancienne affiche hébergée ici n'a plus d'utilité une fois remplacée ou retirée.
+  if (parsed.data.image !== undefined && parsed.data.image !== access.event.image) {
+    await deleteHostedPoster(access.event.image);
+  }
+
   const changed = (Object.keys(AUDITED_FIELDS) as (keyof typeof AUDITED_FIELDS)[])
     .filter((field) => parsed.data[field] !== undefined && !sameValue(parsed.data[field], access.event[field]))
     .map((field) => AUDITED_FIELDS[field]);
@@ -81,6 +87,7 @@ export async function DELETE(_req: Request, context: Context) {
     db.ticket.deleteMany({ where: { eventId: id } }),
     db.event.delete({ where: { id } }),
   ]);
+  await deleteHostedPoster(access.event.image);
   await recordAudit({
     actor: access,
     action: "event.delete",

@@ -28,6 +28,8 @@ import { buildIcs, downloadTextFile } from "@/lib/ics";
 import { eventSchedule, formatDayWithYear, remainingSeats } from "@/lib/format";
 
 type EventPageProps = {
+  /** Adresse du site, pour rendre absolue l'affiche hébergée ici dans les aperçus de lien. */
+  origin: string;
   event: {
     id: string;
     name: string;
@@ -69,8 +71,12 @@ export const getServerSideProps: GetServerSideProps<EventPageProps> = async (ctx
   // Une projection non publiée n'existe pas pour le public.
   if (!event || !event.show) return { notFound: true };
 
+  const host = ctx.req.headers["x-forwarded-host"] ?? ctx.req.headers.host ?? "";
+  const proto = ctx.req.headers["x-forwarded-proto"] ?? "https";
+
   return {
     props: {
+      origin: `${String(proto).split(",")[0]}://${String(host).split(",")[0]}`,
       event: {
         id: event.id,
         name: event.name,
@@ -110,7 +116,7 @@ function Fact({
   );
 }
 
-export default function RegisterPage({ event }: EventPageProps) {
+export default function RegisterPage({ event, origin }: EventPageProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -188,7 +194,7 @@ export default function RegisterPage({ event }: EventPageProps) {
     <PublicLayout
       title={event.name}
       description={`${formatDayWithYear(event.date)}${event.location ? ` · ${event.location}` : ""}. ${branding.tagline ?? ""}`.trim()}
-      image={event.image}
+      image={event.image?.startsWith("/") ? `${origin}${event.image}` : event.image}
     >
       <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 sm:pt-8">
         <Link

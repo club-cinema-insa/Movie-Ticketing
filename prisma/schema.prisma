@@ -118,3 +118,12 @@ model AuditLog {
   @@index([createdAt])
   @@index([eventId])
 }
+
+/// Affiche envoyée depuis le formulaire de séance. Servie par /api/posters/<id> ;
+/// Event.image contient alors cette adresse. Les affiches orphelines sont effacées par la purge.
+model Poster {
+  id          String   @id @default(cuid())
+  data        Bytes
+  contentType String
+  createdAt   DateTime @default(now())
+}

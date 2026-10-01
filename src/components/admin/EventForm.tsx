@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Clapperboard } from "lucide-react";
+import { Clapperboard, ImageUp, X } from "lucide-react";
 import { branding } from "@/config/branding";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { addMinutesToTime, minutesBetween, toOffsetIso } from "@/lib/eventTime";
+import { MAX_SOURCE_BYTES, prepareImageForUpload } from "@/lib/image";
 
 export type EventFormValues = {
   name: string;
@@ -55,7 +56,9 @@ export function validateEventForm(values: EventFormValues): Errors {
     const max = Number(values.maxTickets);
     if (!Number.isInteger(max) || max < 1) errors.maxTickets = "Saisissez un nombre entier supérieur à 0, ou laissez vide.";
   }
-  if (values.image && !/^https?:\/\//i.test(values.image.trim())) errors.image = "Saisissez une adresse commençant par https://";
+  if (values.image && !/^https?:\/\//i.test(values.image.trim()) && !values.image.startsWith("/api/posters/")) {
+    errors.image = "Envoyez une image ou saisissez une adresse commençant par https://";
+  }
   return errors;
 }
 
@@ -101,6 +104,9 @@ export function EventForm({
 }) {
   const [errors, setErrors] = useState<Errors>({});
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const doorsMinutes = branding.startsAfterDoorsMinutes;
 
@@ -132,6 +138,31 @@ export function EventForm({
     });
   };
 
+  /** Réduit l'image choisie, l'envoie au site et remplit le champ « Affiche » avec son adresse. */
+  const uploadPoster = async (file: File) => {
+    setUploadError("");
+    if (file.size > MAX_SOURCE_BYTES) {
+      setUploadError("Ce fichier est trop volumineux (20 Mo maximum).");
+      return;
+    }
+    setUploading(true);
+    try {
+      const blob = await prepareImageForUpload(file);
+      const res = await fetch("/api/admin/posters", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setUploadError(data.error ?? "L’envoi a échoué. Réessayez.");
+        return;
+      }
+      set({ image: data.url });
+    } catch {
+      setUploadError("Cette image n’a pas pu être lue. Essayez un fichier JPEG ou PNG.");
+    } finally {
+      setUploading(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {notice}
@@ -155,18 +186,45 @@ export function EventForm({
           htmlFor="field-image"
           error={errors.image}
           optional
-          hint="Adresse d’une image PNG ou JPEG. Elle s’affiche sur le site, sur le billet et dans la séance Discord."
+          hint="Elle s’affiche sur le site, sur le billet et dans la séance Discord. Envoyez une image ou collez son adresse."
         >
-          <Input
-            id="field-image"
-            type="url"
-            inputMode="url"
-            value={values.image}
-            onChange={(e) => set({ image: e.target.value })}
-            aria-invalid={Boolean(errors.image)}
-            placeholder="https://…"
-            autoComplete="off"
-          />
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="sr-only"
+                tabIndex={-1}
+                aria-label="Choisir une image d’affiche"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadPoster(file);
+                }}
+              />
+              <Button type="button" variant="secondary" loading={uploading} onClick={() => fileInput.current?.click()}>
+                {!uploading && <ImageUp aria-hidden />}
+                {uploading ? "Envoi en cours" : values.image ? "Remplacer l’image" : "Envoyer une image"}
+              </Button>
+              {values.image && (
+                <Button type="button" variant="ghost" onClick={() => set({ image: "" })}>
+                  <X aria-hidden />
+                  Retirer
+                </Button>
+              )}
+            </div>
+            {uploadError && <Alert tone="danger">{uploadError}</Alert>}
+            <Input
+              id="field-image"
+              inputMode="url"
+              value={values.image.startsWith("/api/posters/") ? "Image envoyée depuis le formulaire" : values.image}
+              readOnly={values.image.startsWith("/api/posters/")}
+              onChange={(e) => set({ image: e.target.value })}
+              aria-invalid={Boolean(errors.image)}
+              placeholder="ou coller une adresse : https://…"
+              autoComplete="off"
+            />
+          </div>
         </Field>
 
         {values.image && !errors.image && (

@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
 import { RETENTION_MONTHS } from "@/config/retention";
+import { hostedPosterId } from "@/server/posters/store";
 
 /** Domaine factice des adresses effacées (réservé : ne peut jamais être une vraie adresse). */
 export const ANONYMIZED_DOMAIN = "@anonymise.invalid";
@@ -15,6 +16,8 @@ export type PurgeReport = {
   deleted: number;
   /** Entrées de l'historique des actions du bureau plus anciennes que la durée de conservation. */
   auditDeleted: number;
+  /** Affiches envoyées mais utilisées par aucune séance (formulaire abandonné), vieilles de plus d'un jour. */
+  postersDeleted: number;
 };
 
 export function retentionCutoff(now: Date, months = RETENTION_MONTHS): Date {
@@ -44,6 +47,17 @@ export async function purgeExpiredPersonalData(now = new Date(), dryRun = false)
   const expiredAudit = { createdAt: { lt: cutoff } };
   const auditDeleted = dryRun ? await db.auditLog.count({ where: expiredAudit }) : (await db.auditLog.deleteMany({ where: expiredAudit })).count;
 
+  const used = new Set(
+    (await db.event.findMany({ where: { image: { startsWith: "/api/posters/" } }, select: { image: true } })).map((event) =>
+      hostedPosterId(event.image),
+    ),
+  );
+  const oldPosters = await db.poster.findMany({
+    where: { createdAt: { lt: new Date(now.getTime() - 86_400_000) } },
+    select: { id: true },
+  });
+  const orphanPosters = oldPosters.filter((poster) => !used.has(poster.id)).map((poster) => poster.id);
+
   if (!dryRun) {
     for (let i = 0; i < toAnonymize.length; i += BATCH_SIZE) {
       await db.$transaction(
@@ -55,10 +69,11 @@ export async function purgeExpiredPersonalData(now = new Date(), dryRun = false)
         ),
       );
     }
+    if (orphanPosters.length > 0) await db.poster.deleteMany({ where: { id: { in: orphanPosters } } });
     if (orphans.length > 0) {
       await db.participant.deleteMany({ where: { id: { in: orphans.map(({ id }) => id) } } });
     }
   }
 
-  return { cutoff: cutoff.toISOString(), dryRun, anonymized: toAnonymize.length, deleted: orphans.length, auditDeleted };
+  return { cutoff: cutoff.toISOString(), dryRun, anonymized: toAnonymize.length, deleted: orphans.length, auditDeleted, postersDeleted: orphanPosters.length };
 }

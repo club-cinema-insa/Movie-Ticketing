@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import { branding } from "@/config/branding";
+import { hostedPosterId, loadHostedPoster } from "@/server/posters/store";
 
 export type TicketPDFInput = {
   participantName: string;
@@ -69,6 +70,8 @@ const REMOTE_IMAGE_TIMEOUT_MS = 2500;
 async function loadImage(src: string | null | undefined): Promise<Buffer | null> {
   if (!src) return null;
   try {
+    if (hostedPosterId(src)) return (await loadHostedPoster(src))?.data ?? null;
+
     if (src.startsWith("data:")) {
       const comma = src.indexOf(",");
       return comma === -1 ? null : Buffer.from(src.slice(comma + 1), "base64");
