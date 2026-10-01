@@ -3,8 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/server/auth/config";
 import { db } from "@/server/db";
 import { canAccessEvent } from "@/server/auth/access";
+import { EVENT_TIME_ZONE } from "@/lib/format";
 
-const EVENT_TIME_ZONE = process.env.EVENT_TIME_ZONE ?? "Europe/Paris";
 
 const formatDateTime = (date: Date) =>
   date.toLocaleString("fr-FR", {

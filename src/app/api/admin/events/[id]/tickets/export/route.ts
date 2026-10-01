@@ -1,9 +1,9 @@
 import { db } from "@/server/db";
 import { loadEventForAdmin } from "@/server/auth/guards";
+import { EVENT_TIME_ZONE } from "@/lib/format";
 
 type Context = { params: Promise<{ id: string }> };
 
-const EVENT_TIME_ZONE = process.env.EVENT_TIME_ZONE ?? "Europe/Paris";
 
 const formatDateTime = (date: Date | null) =>
   date

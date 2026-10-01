@@ -1,8 +1,8 @@
 import type { Event, Participant, Ticket } from "@prisma/client";
 import { branding } from "@/config/branding";
+import { EVENT_TIME_ZONE } from "@/lib/format";
 import { generateTicketPDF } from "@/server/utils/generateTicketPDF";
 
-const EVENT_TIME_ZONE = process.env.EVENT_TIME_ZONE ?? "Europe/Paris";
 
 export const formatDate = (date: Date) =>
   date.toLocaleDateString("fr-FR", {
