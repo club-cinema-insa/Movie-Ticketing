@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
-import { Clapperboard, Globe, LogOut, ScanLine, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ChartColumn, Clapperboard, Globe, LogOut, ScanLine, ShieldCheck, type LucideIcon } from "lucide-react";
 import { branding } from "@/config/branding";
 import { SiteHead } from "@/components/layout/SiteHead";
 import { BrandMark } from "@/components/layout/PublicLayout";
@@ -16,6 +16,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon; matches: (path: 
 const NAV: NavItem[] = [
   { href: "/admin/events", label: "Séances", icon: Clapperboard, matches: (p) => p.startsWith("/admin/events") },
   { href: "/verify", label: "Contrôle", icon: ScanLine, matches: (p) => p.startsWith("/verify") },
+  { href: "/admin/stats", label: "Stats", icon: ChartColumn, matches: (p) => p.startsWith("/admin/stats") },
   { href: "/admin/users", label: "Accès", icon: ShieldCheck, matches: (p) => p.startsWith("/admin/users") },
   { href: "/events", label: "Site", icon: Globe, matches: () => false },
 ];
@@ -152,7 +153,7 @@ function AdminShell({ children, title, width = "normal" }: AdminLayoutProps) {
         aria-label="Navigation principale"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
-        <ul className="grid grid-cols-4">
+        <ul className="grid grid-cols-5">
           {NAV.map(({ href, label, icon: Icon, matches }) => {
             const active = matches(pathname);
             return (
