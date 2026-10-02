@@ -14,6 +14,10 @@ export type TicketPDFInput = {
   /** Ouverture des portes, ex. « 19h45 ». Absent : la ligne n'est pas affichée. */
   doorsLabel?: string;
   location: string;
+  /** Durée du film, ex. « 1 h 57 ». Absent : la case n'est pas affichée. */
+  runtimeLabel?: string;
+  /** Réalisateur. Absent : la ligne n'est pas affichée. */
+  directorLabel?: string;
   code: string;
   /** Data URL PNG du QR code. */
   qrCodeDataUrl: string;
@@ -305,8 +309,16 @@ function drawTicket(
     const h2 = field("Heure", input.timeLabel, timeX, CONTENT_WIDTH * 0.32, 34);
     y += Math.max(h1, h2) + 16;
   }
-  const h3 = field("Lieu", input.location, left, CONTENT_WIDTH, 34);
-  y += h3 + 22;
+  if (input.runtimeLabel) {
+    // Lieu (plus large) et durée côte à côte
+    const placeWidth = CONTENT_WIDTH * 0.6;
+    const hPlace = field("Lieu", input.location, left, placeWidth, 34);
+    const hRuntime = field("Durée", input.runtimeLabel, left + CONTENT_WIDTH * 0.64, CONTENT_WIDTH * 0.36, 34);
+    y += Math.max(hPlace, hRuntime) + (input.directorLabel ? 16 : 22);
+  } else {
+    y += field("Lieu", input.location, left, CONTENT_WIDTH, 34) + (input.directorLabel ? 16 : 22);
+  }
+  if (input.directorLabel) y += field("Réalisé par", input.directorLabel, left, CONTENT_WIDTH, 34) + 22;
 
   // ── Perforation avec encoches ──
   doc
@@ -402,6 +414,8 @@ export async function generateTicketPDF(input: TicketPDFInput): Promise<Buffer> 
     eventName: sanitize(input.eventName, "Projection"),
     participantName: sanitize(input.participantName, "Participant"),
     location: sanitize(input.location, "Lieu à venir"),
+    runtimeLabel: sanitize(input.runtimeLabel) || undefined,
+    directorLabel: sanitize(input.directorLabel) || undefined,
     dateLabel: sanitize(input.dateLabel),
     timeLabel: sanitize(input.timeLabel),
     doorsLabel: sanitize(input.doorsLabel) || undefined,

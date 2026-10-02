@@ -16,7 +16,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="apple-mobile-web-app-title" content={branding.appShortName} />
         <meta name="theme-color" content={branding.secondaryColor} />
         <link rel="icon" href={branding.faviconUrl} sizes="any" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2" />
         <link rel="apple-touch-icon" href={iconUrl} />
         <link rel="manifest" href="/api/manifest" />
         <style>{brandThemeCss(branding)}</style>

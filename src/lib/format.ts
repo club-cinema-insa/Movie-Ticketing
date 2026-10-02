@@ -68,6 +68,17 @@ export function formatRuntime(minutes: number): string {
   return rest === 0 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, "0")}`;
 }
 
+/** Durée du film et heure de fin prévue (début + durée), ou null sans durée connue. */
+export function runtimeInfo(
+  date: string | Date,
+  startOffsetMinutes: number | null | undefined,
+  runtimeMinutes: number | null | undefined,
+): { duration: string; end: string } | null {
+  if (!runtimeMinutes) return null;
+  const start = eventStartDate(new Date(date), startOffsetMinutes);
+  return { duration: formatRuntime(runtimeMinutes), end: formatTime(new Date(start.getTime() + runtimeMinutes * 60_000)) };
+}
+
 /** Début réel de la projection (ouverture des portes + délai de la séance), ou la date elle-même sans délai. */
 export function eventStartDate(date: Date, startOffsetMinutes?: number | null): Date {
   const minutes = branding.startsAfterDoorsMinutes ? (startOffsetMinutes ?? branding.startsAfterDoorsMinutes) : 0;

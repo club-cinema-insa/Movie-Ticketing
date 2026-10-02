@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
-import { CalendarDays, CalendarPlus, CircleCheck, Clapperboard, Clock, DoorOpen, Download, MapPin } from "lucide-react";
+import { CalendarDays, CalendarPlus, CircleCheck, Clapperboard, Clock, DoorOpen, Download, Hourglass, MapPin } from "lucide-react";
 import { db } from "@/server/db";
 import { CANCEL_MESSAGES, cancelState, isValidCancelToken } from "@/server/tickets/cancel";
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildIcs, downloadTextFile } from "@/lib/ics";
-import { eventSchedule, formatDayWithYear } from "@/lib/format";
+import { eventSchedule, formatDayWithYear, runtimeInfo } from "@/lib/format";
 
 // Même forme que le code du QR code.
 const TICKET_CODE_PATTERN = /^TICKET-[A-Z0-9]{8,16}$/;
@@ -22,7 +22,15 @@ type TicketPageProps =
   | {
       state: "ok";
       ticket: { code: string; number: number | null; qrCode: string; participantName: string };
-      event: { id: string; name: string; date: string; location: string | null; startOffsetMinutes: number | null };
+      event: {
+        id: string;
+        name: string;
+        date: string;
+        location: string | null;
+        startOffsetMinutes: number | null;
+        runtimeMinutes: number | null;
+        director: string | null;
+      };
       /** Jeton d'annulation, présent seulement s'il est valide. */
       token: string | null;
       /** Motif pour lequel l'annulation n'est plus possible (billet utilisé, séance commencée). */
@@ -64,6 +72,8 @@ export const getServerSideProps: GetServerSideProps<TicketPageProps> = async (ct
         date: ticket.event.date.toISOString(),
         location: ticket.event.location,
         startOffsetMinutes: ticket.event.startOffsetMinutes,
+        runtimeMinutes: ticket.event.runtimeMinutes,
+        director: ticket.event.director,
       },
       token,
       cancelBlocked: token && state !== "allowed" ? CANCEL_MESSAGES[state] : null,
@@ -100,6 +110,7 @@ export default function TicketPage(props: TicketPageProps) {
   const { ticket, event, token, cancelBlocked } = props;
 
   const schedule = eventSchedule(event.date, event.startOffsetMinutes);
+  const runtime = runtimeInfo(event.date, event.startOffsetMinutes, event.runtimeMinutes);
 
   if (cancelled) {
     return (
@@ -179,6 +190,20 @@ export default function TicketPage(props: TicketPageProps) {
             <li className="flex items-center gap-3">
               <Clock className="size-5 shrink-0 text-brand" aria-hidden />
               <span>{schedule.start}</span>
+            </li>
+          )}
+          {event.director && (
+            <li className="flex items-center gap-3">
+              <Clapperboard className="size-5 shrink-0 text-brand" aria-hidden />
+              <span>Réalisé par {event.director}</span>
+            </li>
+          )}
+          {runtime && (
+            <li className="flex items-center gap-3">
+              <Hourglass className="size-5 shrink-0 text-brand" aria-hidden />
+              <span>
+                Durée {runtime.duration}, fin prévue vers {runtime.end}
+              </span>
             </li>
           )}
           {event.location && (

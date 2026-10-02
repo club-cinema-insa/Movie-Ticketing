@@ -8,6 +8,7 @@ import {
   Clapperboard,
   Clock,
   DoorOpen,
+  Hourglass,
   Download,
   Info,
   MapPin,
@@ -25,7 +26,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input } from "@/components/ui/field";
 import { buildIcs, downloadTextFile } from "@/lib/ics";
-import { eventSchedule, formatDayWithYear, formatRuntime, remainingSeats } from "@/lib/format";
+import { eventSchedule, formatDayWithYear, remainingSeats, runtimeInfo } from "@/lib/format";
 
 type EventPageProps = {
   /** Adresse du site, pour rendre absolue l'affiche hébergée ici dans les aperçus de lien. */
@@ -148,6 +149,7 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
   }
 
   const schedule = eventSchedule(event.date, event.startOffsetMinutes);
+  const runtime = runtimeInfo(event.date, event.startOffsetMinutes, event.runtimeMinutes);
   const remaining = remainingSeats(event.maxTickets, event.issued);
   const full = remaining === 0;
 
@@ -225,13 +227,7 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
 
             <div>
               <h1 className="text-3xl font-extrabold sm:text-4xl">{event.name}</h1>
-              {(event.director ?? event.runtimeMinutes) && (
-                <p className="mt-2 text-[0.95rem] text-subtle">
-                  {[event.director && `Réalisé par ${event.director}`, event.runtimeMinutes && formatRuntime(event.runtimeMinutes)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              )}
+              {event.director && <p className="mt-2 text-[0.95rem] text-subtle">Réalisé par {event.director}</p>}
             </div>
 
             <ul className="grid gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card sm:grid-cols-2 sm:p-5">
@@ -253,6 +249,12 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
               ) : (
                 <Fact icon={Clock} label="Heure" wide>
                   {schedule.start}
+                </Fact>
+              )}
+              {runtime && (
+                <Fact icon={Hourglass} label="Durée du film" wide>
+                  {runtime.duration}
+                  <span className="font-normal text-subtle"> · fin prévue vers {runtime.end}</span>
                 </Fact>
               )}
               {remaining !== null && (

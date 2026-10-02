@@ -1,5 +1,5 @@
 import type { Event } from "@prisma/client";
-import { EVENT_TIME_ZONE, eventSchedule, eventStartDate } from "@/lib/format";
+import { EVENT_TIME_ZONE, eventSchedule, eventStartDate, runtimeInfo } from "@/lib/format";
 
 /** Neutralise le balisage Discord et les mentions dans un texte saisi par le bureau. */
 export function escapeDiscord(text: string): string {
@@ -51,7 +51,7 @@ function excerpt(text: string, max: number): string {
 
 type SessionForMessage = Pick<
   Event,
-  "id" | "name" | "date" | "location" | "description" | "maxTickets" | "startOffsetMinutes" | "announceEmojis" | "director"
+  "id" | "name" | "date" | "location" | "description" | "maxTickets" | "startOffsetMinutes" | "announceEmojis" | "director" | "runtimeMinutes"
 >;
 
 /** Emojis par défaut quand le bureau n'en a pas choisi pour le film. */
@@ -100,6 +100,8 @@ export function buildAnnouncement(
     "Voici les infos essentielles pour participer à cette projection :",
     `• La séance aura lieu ${timing}.`,
   );
+  const runtime = runtimeInfo(event.date, event.startOffsetMinutes, event.runtimeMinutes);
+  if (runtime) lines.push(`• Durée du film : ${runtime.duration} (fin prévue vers ${runtime.end}).`);
   if (event.location) lines.push(`• Lieu : ${escapeDiscord(event.location)}.`);
   lines.push(`• ${seats}`);
   if (options.bookingUrl) lines.push(options.bookingUrl);
@@ -113,6 +115,7 @@ export function buildAnnouncement(
 /** Description de la séance Discord (1000 caractères maximum). */
 export function buildEventDescription(event: SessionForMessage, bookingUrl: string | null): string {
   const parts: string[] = [];
+  if (event.director?.trim()) parts.push(`Réalisé par ${event.director.trim()}.`);
   if (event.description?.trim()) parts.push(excerpt(event.description, 700));
   parts.push(
     `Séance gratuite${event.maxTickets ? `, places limitées (${event.maxTickets})` : ""}. ${

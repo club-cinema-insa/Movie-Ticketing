@@ -1,6 +1,7 @@
 import type { Event, Participant, Ticket } from "@prisma/client";
 import { branding } from "@/config/branding";
 import { formatDate, formatTime, startAfterDoors } from "@/server/utils/ticketDocument";
+import { runtimeInfo } from "@/lib/format";
 import { siteUrl } from "@/server/utils/siteUrl";
 import { manageTicketPath } from "@/server/tickets/cancel";
 
@@ -24,6 +25,10 @@ function scheduleRows(event: Event): Row[] {
   } else {
     rows.push({ label: "Heure", value: formatTime(event.date) });
   }
+
+  if (event.director) rows.push({ label: "Réalisé par", value: event.director });
+  const runtime = runtimeInfo(event.date, event.startOffsetMinutes, event.runtimeMinutes);
+  if (runtime) rows.push({ label: "Durée", value: `${runtime.duration}, fin prévue vers ${runtime.end}` });
 
   rows.push({ label: "Lieu", value: event.location ?? "À préciser" });
   return rows;

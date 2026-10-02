@@ -7,7 +7,8 @@ const brandingClubCine: BrandingConfig = {
   appShortName: "Club Ciné",
   logoUrl: "/clubcine-logo.png",
   logoAlt: "Club Ciné INSA",
-  faviconUrl: "/clubcine-favicon.ico",
+  // « ?v=2 » force les navigateurs à recharger l'icône (ils la gardent très longtemps en cache).
+  faviconUrl: "/clubcine-favicon.ico?v=2",
   iconUrl: "/clubcine-icon-512.png",
   // Palette tirée du logo : turquoise du fond, orange et jaune du renard, rouge des lunettes, crème.
   primaryColor: "#1a736e",
