@@ -26,7 +26,6 @@ function scheduleRows(event: Event): Row[] {
     rows.push({ label: "Heure", value: formatTime(event.date) });
   }
 
-  if (event.director) rows.push({ label: "Réalisé par", value: event.director });
   const runtime = runtimeInfo(event.date, event.startOffsetMinutes, event.runtimeMinutes);
   if (runtime) rows.push({ label: "Durée", value: `${runtime.duration}, fin prévue vers ${runtime.end}` });
 
@@ -98,7 +97,8 @@ export function buildTicketEmail(params: {
             <tr>
               <td style="padding:16px 24px 8px 24px;">
                 <div style="border:1px solid #e6e1cf;border-radius:12px;padding:14px 16px;background:${canvas};">
-                  <p style="margin:0 0 6px 0;font-size:17px;font-weight:700;color:${ink};">${escapeHtml(event.name)}</p>
+                  <p style="margin:0 0 ${event.director ? 2 : 6}px 0;font-size:17px;font-weight:700;color:${ink};">${escapeHtml(event.name)}</p>
+                  ${event.director ? `<p style="margin:0 0 6px 0;font-size:13px;color:${muted};">Réalisé par ${escapeHtml(event.director)}</p>` : ""}
                   <table role="presentation" cellpadding="0" cellspacing="0">${rowsHtml}</table>
                 </div>
               </td>
@@ -146,6 +146,7 @@ export function buildTicketEmail(params: {
     intro,
     "",
     event.name,
+    ...(event.director ? [`Réalisé par ${event.director}`] : []),
     ...rows.map(({ label, value }) => `${label} : ${value}`),
     "",
     ...(pdfLink ? [`Télécharger mon billet : ${pdfLink}`, ""] : []),

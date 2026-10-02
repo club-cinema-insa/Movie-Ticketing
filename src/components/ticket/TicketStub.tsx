@@ -10,7 +10,7 @@ export type TicketStubData = {
 };
 
 /** Le billet, tel que l'étudiant le présentera à l'entrée. */
-export function TicketStub({ ticket, eventName }: { ticket: TicketStubData; eventName: string }) {
+export function TicketStub({ ticket, eventName, director }: { ticket: TicketStubData; eventName: string; director?: string | null }) {
   return (
     <div className="overflow-hidden rounded-3xl bg-surface shadow-pop ring-1 ring-line">
       <div className="flex items-center gap-3 bg-brand-strong px-5 py-4 text-white">
@@ -28,6 +28,7 @@ export function TicketStub({ ticket, eventName }: { ticket: TicketStubData; even
 
       <div className="px-5 pt-5">
         <p className="font-display text-xl font-bold leading-tight">{eventName}</p>
+        {director && <p className="mt-0.5 text-sm text-subtle">Réalisé par {director}</p>}
         <p className="mt-1 flex items-center gap-1.5 text-sm text-subtle">
           <UserRound className="size-4" aria-hidden />
           {ticket.participantName}

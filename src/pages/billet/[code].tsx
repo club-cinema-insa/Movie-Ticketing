@@ -172,7 +172,7 @@ export default function TicketPage(props: TicketPageProps) {
           <p className="mt-1 text-[0.95rem] text-subtle">Présentez ce QR code à l’entrée.</p>
         </div>
 
-        <TicketStub ticket={ticket} eventName={event.name} />
+        <TicketStub ticket={ticket} eventName={event.name} director={event.director} />
 
         <ul className="space-y-2.5 rounded-2xl border border-line bg-surface p-4 text-[0.95rem] shadow-card">
           <li className="flex items-center gap-3">
@@ -190,12 +190,6 @@ export default function TicketPage(props: TicketPageProps) {
             <li className="flex items-center gap-3">
               <Clock className="size-5 shrink-0 text-brand" aria-hidden />
               <span>{schedule.start}</span>
-            </li>
-          )}
-          {event.director && (
-            <li className="flex items-center gap-3">
-              <Clapperboard className="size-5 shrink-0 text-brand" aria-hidden />
-              <span>Réalisé par {event.director}</span>
             </li>
           )}
           {runtime && (

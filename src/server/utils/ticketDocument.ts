@@ -1,6 +1,6 @@
 import type { Event, Participant, Ticket } from "@prisma/client";
 import { branding } from "@/config/branding";
-import { EVENT_TIME_ZONE, formatRuntime } from "@/lib/format";
+import { EVENT_TIME_ZONE, runtimeInfo } from "@/lib/format";
 import { generateTicketPDF } from "@/server/utils/generateTicketPDF";
 
 
@@ -40,6 +40,7 @@ export function buildTicketPDF(params: {
 }): Promise<Buffer> {
   const { ticket, event, participant } = params;
   const start = startAfterDoors(event);
+  const runtime = runtimeInfo(event.date, event.startOffsetMinutes, event.runtimeMinutes);
 
   return generateTicketPDF({
     participantName: participant.name,
@@ -48,7 +49,8 @@ export function buildTicketPDF(params: {
     timeLabel: formatTime(start ?? event.date),
     doorsLabel: start ? formatTime(event.date) : undefined,
     location: event.location ?? "Lieu à venir",
-    runtimeLabel: event.runtimeMinutes ? formatRuntime(event.runtimeMinutes) : undefined,
+    runtimeLabel: runtime?.duration,
+    endLabel: runtime?.end,
     directorLabel: event.director ?? undefined,
     code: ticket.code,
     qrCodeDataUrl: ticket.qrCode,

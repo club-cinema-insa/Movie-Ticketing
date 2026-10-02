@@ -16,7 +16,9 @@ export type TicketPDFInput = {
   location: string;
   /** Durée du film, ex. « 1 h 57 ». Absent : la case n'est pas affichée. */
   runtimeLabel?: string;
-  /** Réalisateur. Absent : la ligne n'est pas affichée. */
+  /** Heure de fin prévue, ex. « 21h57 », affichée à côté de la durée. */
+  endLabel?: string;
+  /** Réalisateur, affiché sous le titre. Absent : la ligne n'est pas affichée. */
   directorLabel?: string;
   code: string;
   /** Data URL PNG du QR code. */
@@ -271,13 +273,31 @@ function drawTicket(
   doc.font(titleFace).fontSize(title.size);
   const titleMax = Math.ceil(doc.currentLineHeight() * title.maxLines) + 2;
   const titleHeight = Math.min(doc.heightOfString(input.eventName, { width: CONTENT_WIDTH }), titleMax);
+
+  // Le réalisateur se glisse sous le titre : le titre remonte d'une ligne.
+  const directorLine = input.directorLabel ? `Réalisé par ${input.directorLabel}` : null;
+  const directorBlock = directorLine ? 20 : 0;
   doc
     .fillColor("#ffffff")
-    .text(input.eventName, cardX + INSET, cardY + heroHeight - titleHeight - 18, {
+    .text(input.eventName, cardX + INSET, cardY + heroHeight - titleHeight - 18 - directorBlock, {
       width: CONTENT_WIDTH,
       height: titleMax,
       ellipsis: true,
     });
+  if (directorLine) {
+    doc
+      .fillColor("#ffffff")
+      .fillOpacity(0.88)
+      .font("Body")
+      .fontSize(10.5)
+      .text(directorLine, cardX + INSET, cardY + heroHeight - 18 - 13, {
+        width: CONTENT_WIDTH,
+        height: 14,
+        ellipsis: true,
+        lineBreak: false,
+      });
+    doc.fillOpacity(1);
+  }
 
   // ── Date / heure / lieu ──
   let y = cardY + heroHeight + 22;
@@ -310,15 +330,13 @@ function drawTicket(
     y += Math.max(h1, h2) + 16;
   }
   if (input.runtimeLabel) {
-    // Lieu (plus large) et durée côte à côte
-    const placeWidth = CONTENT_WIDTH * 0.6;
-    const hPlace = field("Lieu", input.location, left, placeWidth, 34);
-    const hRuntime = field("Durée", input.runtimeLabel, left + CONTENT_WIDTH * 0.64, CONTENT_WIDTH * 0.36, 34);
-    y += Math.max(hPlace, hRuntime) + (input.directorLabel ? 16 : 22);
-  } else {
-    y += field("Lieu", input.location, left, CONTENT_WIDTH, 34) + (input.directorLabel ? 16 : 22);
+    // Durée et fin prévue, alignées sur les deux colonnes des horaires
+    const half = CONTENT_WIDTH / 2 - 6;
+    const hRuntime = field("Durée", input.runtimeLabel, left, half, 34);
+    const hEnd = input.endLabel ? field("Fin prévue", `vers ${input.endLabel}`, left + half + 12, half, 34) : 0;
+    y += Math.max(hRuntime, hEnd) + 16;
   }
-  if (input.directorLabel) y += field("Réalisé par", input.directorLabel, left, CONTENT_WIDTH, 34) + 22;
+  y += field("Lieu", input.location, left, CONTENT_WIDTH, 34) + 22;
 
   // ── Perforation avec encoches ──
   doc
@@ -416,6 +434,7 @@ export async function generateTicketPDF(input: TicketPDFInput): Promise<Buffer> 
     location: sanitize(input.location, "Lieu à venir"),
     runtimeLabel: sanitize(input.runtimeLabel) || undefined,
     directorLabel: sanitize(input.directorLabel) || undefined,
+    endLabel: sanitize(input.endLabel) || undefined,
     dateLabel: sanitize(input.dateLabel),
     timeLabel: sanitize(input.timeLabel),
     doorsLabel: sanitize(input.doorsLabel) || undefined,

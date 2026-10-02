@@ -279,7 +279,7 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
                     </p>
                   </div>
 
-                  <TicketStub ticket={result.ticket} eventName={event.name} />
+                  <TicketStub ticket={result.ticket} eventName={event.name} director={event.director} />
 
                   <div className="grid gap-2.5">
                     <Button asChild size="lg" block>
