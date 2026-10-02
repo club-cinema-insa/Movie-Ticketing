@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildIcs, downloadTextFile } from "@/lib/ics";
+import { useOfflineTicket } from "@/lib/offlineTicket";
 import { eventSchedule, formatDayWithYear, runtimeInfo } from "@/lib/format";
 
 // Même forme que le code du QR code.
@@ -105,6 +106,7 @@ export default function TicketPage(props: TicketPageProps) {
   const [cancelling, setCancelling] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState("");
+  const offline = useOfflineTicket(props.state === "ok" && !cancelled);
 
   if (props.state === "gone") return <Gone />;
   const { ticket, event, token, cancelBlocked } = props;
@@ -170,6 +172,9 @@ export default function TicketPage(props: TicketPageProps) {
         <div>
           <h1 className="text-3xl font-extrabold">Votre billet</h1>
           <p className="mt-1 text-[0.95rem] text-subtle">Présentez ce QR code à l’entrée.</p>
+          {offline === "saved" && (
+            <p className="mt-1 text-sm text-subtle">Enregistré sur cet appareil : il reste visible sans connexion.</p>
+          )}
         </div>
 
         <TicketStub ticket={ticket} eventName={event.name} director={event.director} />

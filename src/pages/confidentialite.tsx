@@ -59,6 +59,11 @@ export default function PrivacyPage() {
             enregistre aussi le numéro de votre billet et l’heure de sa validation à l’entrée.
           </p>
           <p>Il n’y a ni publicité, ni suivi, ni cookie sur le site public.</p>
+          <p>
+            Pour que votre billet reste affichable sans réseau, la page de votre billet est enregistrée sur votre appareil,
+            dans le stockage de votre navigateur. Rien n’est envoyé ailleurs, et vous pouvez l’effacer en vidant les données du
+            site.
+          </p>
         </Section>
 
         <Section title="À quoi elles servent">

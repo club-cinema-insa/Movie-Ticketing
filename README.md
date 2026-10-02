@@ -4,7 +4,7 @@ Application de réservation gratuite pour les séances du club : les étudiants 
 
 ## Fonctionnalités
 
-- **Site public** : liste des séances, réservation en quelques secondes, billet PDF téléchargeable, ajout à l’agenda.
+- **Site public** : liste des séances, réservation en quelques secondes, billet PDF téléchargeable, ajout à l’agenda. La page du billet reste affichable sans réseau une fois ouverte (service worker `public/sw.js`, cache du navigateur, aucun cookie).
 - **Espace bureau** (connexion Discord, réservé aux comptes autorisés) :
   - création, modification, publication et suppression des séances (préremplies à partir de la dernière), avec envoi de l’affiche depuis le formulaire (réduite dans le navigateur puis stockée dans la base, sans service externe) ;
   - liste des réservations : recherche, validation manuelle, annulation, ajout, export CSV ;
