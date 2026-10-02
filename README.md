@@ -75,6 +75,10 @@ Mise en place (gratuite) :
 4. Dans Vercel, définir `DISCORD_BOT_TOKEN` (cocher Sensitive), `DISCORD_GUILD_ID`, `DISCORD_ANNOUNCE_CHANNEL_ID` et, pour les alertes, `DISCORD_STAFF_CHANNEL_ID`, puis redéployer.
 5. Vérifier que le bot a accès aux deux salons (surtout le salon privé du bureau).
 
+## Recherche de film (TMDB)
+
+Dans le formulaire de séance, la recherche de film remplit le nom, le synopsis, le réalisateur, la durée et l'affiche (image paysage de préférence, hébergée sur le site). Elle utilise la base TMDB, gratuite : créer un compte sur [themoviedb.org](https://www.themoviedb.org), puis dans Paramètres, API, demander une clé (usage personnel). Définir `TMDB_API_KEY` dans Vercel (la « clé API » ou le « jeton d'accès en lecture » fonctionnent) et redéployer. Sans clé, le reste du formulaire fonctionne normalement. Les mentions de TMDB (« Ce site n'est ni approuvé ni certifié par TMDB ») sont demandées par leurs conditions d'utilisation.
+
 ## Licence
 
 MIT, voir [LICENSE](./LICENSE).

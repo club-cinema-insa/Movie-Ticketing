@@ -7,7 +7,7 @@ import { recordAudit } from "@/server/audit/log";
 import { deleteHostedPoster } from "@/server/posters/store";
 
 /** Champs que la séance Discord reprend : leur modification déclenche une mise à jour. */
-const DISCORD_FIELDS = ["name", "date", "startOffsetMinutes", "location", "description"] as const;
+const DISCORD_FIELDS = ["name", "date", "startOffsetMinutes", "location", "description", "runtimeMinutes"] as const;
 
 /** Champs suivis dans l'historique, avec leur libellé. */
 const AUDITED_FIELDS = {
@@ -19,6 +19,8 @@ const AUDITED_FIELDS = {
   image: "affiche",
   maxTickets: "places",
   announceEmojis: "emojis de l’annonce",
+  director: "réalisateur",
+  runtimeMinutes: "durée",
 } as const;
 
 const sameValue = (a: unknown, b: unknown) =>

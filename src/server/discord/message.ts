@@ -51,7 +51,7 @@ function excerpt(text: string, max: number): string {
 
 type SessionForMessage = Pick<
   Event,
-  "id" | "name" | "date" | "location" | "description" | "maxTickets" | "startOffsetMinutes" | "announceEmojis"
+  "id" | "name" | "date" | "location" | "description" | "maxTickets" | "startOffsetMinutes" | "announceEmojis" | "director"
 >;
 
 /** Emojis par défaut quand le bureau n'en a pas choisi pour le film. */
@@ -86,7 +86,7 @@ export function buildAnnouncement(
   const lines = [
     `**PROJECTION DU FILM ${name.toUpperCase()}**`,
     "",
-    `Le club ciné vous propose la projection du film **${name}**.`,
+    `Le club ciné vous propose la projection du film **${name}**${event.director?.trim() ? ` réalisé par ${escapeDiscord(event.director)}` : ""}.`,
   ];
 
   const synopsis = event.description?.trim();

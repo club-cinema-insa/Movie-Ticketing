@@ -80,6 +80,10 @@ model Event {
   discordEventId     String?
   /// Emojis qui évoquent le film, ajoutés à la fin de l'annonce Discord.
   announceEmojis     String?
+  /// Réalisateur (importé depuis TMDB ou saisi), repris dans l'annonce Discord.
+  director           String?
+  /// Durée du film en minutes : sert à l'heure de fin de la séance Discord.
+  runtimeMinutes     Int?
   createdById String?
   createdBy   User?    @relation(fields: [createdById], references: [id])
   tickets     Ticket[]

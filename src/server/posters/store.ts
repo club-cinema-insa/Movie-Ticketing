@@ -12,11 +12,29 @@ export function hostedPosterId(src: string | null | undefined): string | null {
   return HOSTED_PATTERN.exec(src ?? "")?.[1] ?? null;
 }
 
-/** Type de l'image d'après ses premiers octets (PNG ou JPEG de base), sinon null. */
+/**
+ * Type de l'image d'après ses octets (JPEG de base ou PNG), sinon null.
+ * On vérifie aussi la fin du fichier : une image tronquée serait enregistrée corrompue.
+ */
 export function sniffImageType(data: Uint8Array): "image/jpeg" | "image/png" | null {
-  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return isProgressiveJpeg(data) ? null : "image/jpeg";
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
+    return !isProgressiveJpeg(data) && endsWithJpegMarker(data) ? "image/jpeg" : null;
+  }
   const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  return png.every((byte, index) => data[index] === byte) ? "image/png" : null;
+  return png.every((byte, index) => data[index] === byte) && endsWithPngTrailer(data) ? "image/png" : null;
+}
+
+/** Un JPEG complet se termine par le marqueur FF D9 (éventuellement suivi d'octets nuls). */
+function endsWithJpegMarker(data: Uint8Array): boolean {
+  let end = data.length;
+  while (end > 2 && data[end - 1] === 0) end--;
+  return data[end - 2] === 0xff && data[end - 1] === 0xd9;
+}
+
+/** Un PNG complet se termine par le bloc IEND. */
+function endsWithPngTrailer(data: Uint8Array): boolean {
+  const iend = [0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
+  return iend.every((byte, index) => data[data.length - 8 + index] === byte);
 }
 
 /** pdfkit (billet PDF) ne lit pas les JPEG progressifs : on les refuse plutôt que d'avoir un billet sans affiche. */

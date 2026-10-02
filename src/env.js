@@ -23,6 +23,10 @@ export const env = createEnv({
     CRON_SECRET: z.string().min(16).optional(),
     // Adresse publique de connexion quand le site passe par un relais (voir pages/api/auth).
     AUTH_PUBLIC_URL: z.string().url().optional(),
+    // Recherche de film dans le formulaire de séance (clé gratuite sur themoviedb.org) ; les deux autres sont des points d'entrée de test.
+    TMDB_API_KEY: z.string().optional(),
+    TMDB_API_BASE: z.string().url().optional(),
+    TMDB_IMAGE_BASE: z.string().url().optional(),
     // Annonces Discord (facultatif) : jeton du bot du club, serveur et salons.
     DISCORD_BOT_TOKEN: z.string().optional(),
     DISCORD_GUILD_ID: z.string().optional(),
@@ -56,6 +60,9 @@ export const env = createEnv({
     ADMIN_SHARED_EVENTS: process.env.ADMIN_SHARED_EVENTS,
     CRON_SECRET: process.env.CRON_SECRET,
     AUTH_PUBLIC_URL: process.env.AUTH_PUBLIC_URL,
+    TMDB_API_KEY: process.env.TMDB_API_KEY,
+    TMDB_API_BASE: process.env.TMDB_API_BASE,
+    TMDB_IMAGE_BASE: process.env.TMDB_IMAGE_BASE,
     DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
     DISCORD_GUILD_ID: process.env.DISCORD_GUILD_ID,
     DISCORD_ANNOUNCE_CHANNEL_ID: process.env.DISCORD_ANNOUNCE_CHANNEL_ID,

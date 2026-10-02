@@ -9,6 +9,7 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { addMinutesToTime, minutesBetween, toOffsetIso } from "@/lib/eventTime";
 import { MAX_SOURCE_BYTES, prepareImageForUpload } from "@/lib/image";
+import { FilmSearch, type ImportedFilm } from "@/components/admin/FilmSearch";
 
 export type EventFormValues = {
   name: string;
@@ -20,6 +21,9 @@ export type EventFormValues = {
   location: string;
   description: string;
   announceEmojis: string;
+  director: string;
+  /** Durée en minutes (texte du champ). */
+  runtimeMinutes: string;
   image: string;
   maxTickets: string;
   show: boolean;
@@ -33,6 +37,8 @@ export const emptyEventForm: EventFormValues = {
   location: "",
   description: "",
   announceEmojis: "",
+  director: "",
+  runtimeMinutes: "",
   image: "",
   maxTickets: "",
   show: false,
@@ -51,6 +57,10 @@ export function validateEventForm(values: EventFormValues): Errors {
     else if ((minutesBetween(values.time, values.startTime) ?? 0) < 0) {
       errors.startTime = "Le début doit être après l’ouverture des portes.";
     }
+  }
+  if (values.runtimeMinutes) {
+    const minutes = Number(values.runtimeMinutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) errors.runtimeMinutes = "Saisissez une durée en minutes (entre 1 et 600), ou laissez vide.";
   }
   if (values.maxTickets) {
     const max = Number(values.maxTickets);
@@ -71,6 +81,8 @@ export function eventFormToPayload(values: EventFormValues, options: { includeSh
     location: values.location.trim(),
     description: values.description.trim(),
     announceEmojis: values.announceEmojis.trim(),
+    director: values.director.trim(),
+    runtimeMinutes: values.runtimeMinutes ? parseInt(values.runtimeMinutes, 10) : null,
     image: values.image.trim(),
     maxTickets: values.maxTickets ? parseInt(values.maxTickets, 10) : null,
     ...(branding.startsAfterDoorsMinutes && values.startTime
@@ -163,12 +175,25 @@ export function EventForm({
     }
   };
 
+  /** Reprend les informations d'un film choisi dans la recherche (les champs restent modifiables). */
+  const importFilm = (film: ImportedFilm) => {
+    set({
+      name: film.title || values.name,
+      description: film.overview || values.description,
+      director: film.director ?? values.director,
+      runtimeMinutes: film.runtimeMinutes ? String(film.runtimeMinutes) : values.runtimeMinutes,
+      image: film.image ?? values.image,
+    });
+  };
+
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {notice}
 
       <Card className="space-y-5 p-5 sm:p-6">
         <h2 className="text-lg font-bold">Le film</h2>
+
+        <FilmSearch onImport={importFilm} />
 
         <Field label="Nom du film" htmlFor="field-name" error={errors.name}>
           <Input
@@ -180,6 +205,30 @@ export function EventForm({
             autoComplete="off"
           />
         </Field>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Réalisateur" htmlFor="field-director" optional>
+            <Input
+              id="field-director"
+              value={values.director}
+              onChange={(e) => set({ director: e.target.value })}
+              placeholder="Ridley Scott"
+              autoComplete="off"
+            />
+          </Field>
+          <Field label="Durée (minutes)" htmlFor="field-runtimeMinutes" error={errors.runtimeMinutes} optional>
+            <Input
+              id="field-runtimeMinutes"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={values.runtimeMinutes}
+              onChange={(e) => set({ runtimeMinutes: e.target.value })}
+              aria-invalid={Boolean(errors.runtimeMinutes)}
+              placeholder="117"
+            />
+          </Field>
+        </div>
 
         <Field
           label="Affiche"

@@ -25,7 +25,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input } from "@/components/ui/field";
 import { buildIcs, downloadTextFile } from "@/lib/ics";
-import { eventSchedule, formatDayWithYear, remainingSeats } from "@/lib/format";
+import { eventSchedule, formatDayWithYear, formatRuntime, remainingSeats } from "@/lib/format";
 
 type EventPageProps = {
   /** Adresse du site, pour rendre absolue l'affiche hébergée ici dans les aperçus de lien. */
@@ -39,6 +39,8 @@ type EventPageProps = {
     image: string | null;
     maxTickets: number | null;
     startOffsetMinutes: number | null;
+    director: string | null;
+    runtimeMinutes: number | null;
     issued: number;
   } | null;
 };
@@ -86,6 +88,8 @@ export const getServerSideProps: GetServerSideProps<EventPageProps> = async (ctx
         image: event.image,
         maxTickets: event.maxTickets,
         startOffsetMinutes: event.startOffsetMinutes,
+        director: event.director,
+        runtimeMinutes: event.runtimeMinutes,
         issued: event._count.tickets,
       },
     },
@@ -219,7 +223,16 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
               </div>
             )}
 
-            <h1 className="text-3xl font-extrabold sm:text-4xl">{event.name}</h1>
+            <div>
+              <h1 className="text-3xl font-extrabold sm:text-4xl">{event.name}</h1>
+              {(event.director ?? event.runtimeMinutes) && (
+                <p className="mt-2 text-[0.95rem] text-subtle">
+                  {[event.director && `Réalisé par ${event.director}`, event.runtimeMinutes && formatRuntime(event.runtimeMinutes)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
+            </div>
 
             <ul className="grid gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card sm:grid-cols-2 sm:p-5">
               <Fact icon={CalendarDays} label="Date">

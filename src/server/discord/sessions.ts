@@ -15,8 +15,10 @@ import {
 } from "@/server/discord/client";
 import { buildAnnouncement, buildEventDescription, buildFullAlert } from "@/server/discord/message";
 
-/** Durée supposée d'une séance : Discord exige une heure de fin pour un événement hors salon. */
-const SESSION_DURATION_MS = 3 * 3_600_000;
+/** Durée supposée quand elle n'est pas renseignée : Discord exige une heure de fin pour un événement hors salon. */
+const DEFAULT_SESSION_DURATION_MS = 3 * 3_600_000;
+/** Marge après le film (générique, discussions) quand sa durée est connue. */
+const AFTER_FILM_MARGIN_MS = 30 * 60_000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const IMAGE_TIMEOUT_MS = 5000;
 
@@ -52,7 +54,9 @@ function eventPayload(event: Event): Omit<ScheduledEventPayload, "image"> {
     name: event.name.slice(0, 100),
     description: buildEventDescription(event, bookingUrl(event.id)),
     scheduled_start_time: start.toISOString(),
-    scheduled_end_time: new Date(start.getTime() + SESSION_DURATION_MS).toISOString(),
+    scheduled_end_time: new Date(
+      start.getTime() + (event.runtimeMinutes ? event.runtimeMinutes * 60_000 + AFTER_FILM_MARGIN_MS : DEFAULT_SESSION_DURATION_MS),
+    ).toISOString(),
     location: (event.location ?? "Lieu à préciser").slice(0, 100),
   };
 }

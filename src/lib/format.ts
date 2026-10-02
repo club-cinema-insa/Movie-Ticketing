@@ -60,6 +60,14 @@ export function eventSchedule(
   return { doors: formatTime(iso), start: formatTime(start), startLabel: branding.startLabel ?? "Début" };
 }
 
+/** Durée d'un film : « 1 h 59 », « 45 min ». */
+export function formatRuntime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, "0")}`;
+}
+
 /** Début réel de la projection (ouverture des portes + délai de la séance), ou la date elle-même sans délai. */
 export function eventStartDate(date: Date, startOffsetMinutes?: number | null): Date {
   const minutes = branding.startsAfterDoorsMinutes ? (startOffsetMinutes ?? branding.startsAfterDoorsMinutes) : 0;
