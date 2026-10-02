@@ -19,7 +19,9 @@ import {
 import { db } from "@/server/db";
 import { branding } from "@/config/branding";
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { MyTickets } from "@/components/ticket/MyTickets";
 import { TicketStub } from "@/components/ticket/TicketStub";
+import { useOfflineTicket } from "@/lib/offlineTicket";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -128,6 +130,11 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
   const [error, setError] = useState("");
   const [result, setResult] = useState<RegisterResponse | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+  const offline = useOfflineTicket(
+    result && event
+      ? { code: result.ticket.code, eventId: event.id, eventName: event.name, date: event.date, url: result.manageUrl }
+      : null,
+  );
 
   if (!event) {
     return (
@@ -305,6 +312,19 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
                     </Alert>
                   )}
 
+                  {offline === "saved" && (
+                    <p className="text-center text-sm text-subtle">
+                      Billet enregistré sur cet appareil : sans connexion,{" "}
+                      <Link
+                        href={result.manageUrl.split("?")[0] ?? result.manageUrl}
+                        className="font-semibold text-brand underline underline-offset-2"
+                      >
+                        ouvrez-le ici
+                      </Link>
+                      .
+                    </p>
+                  )}
+
                   <p className="text-center text-sm text-subtle">
                     Un empêchement ?{" "}
                     <Link href={result.manageUrl} className="font-semibold text-brand underline underline-offset-2">
@@ -313,61 +333,64 @@ export default function RegisterPage({ event, origin }: EventPageProps) {
                   </p>
                 </div>
               ) : (
-                <Card className="p-5 sm:p-6">
-                  <h2 className="text-2xl font-extrabold">{full ? "Retrouver mon billet" : "Réserver ma place"}</h2>
-                  <p className="mt-1 text-[0.95rem] text-subtle">
-                    {full
-                      ? "Cette séance est complète. Si vous aviez réservé, saisissez les mêmes informations pour retrouver votre billet."
-                      : "Gratuit. Votre billet s’affiche dès la réservation."}
-                  </p>
-
-                  <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-                    <Field label="Nom" htmlFor="name">
-                      <Input
-                        id="name"
-                        name="name"
-                        type="text"
-                        autoComplete="name"
-                        autoCapitalize="words"
-                        required
-                        maxLength={100}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Ousmane Dembélé"
-                      />
-                    </Field>
-
-                    <Field label="Adresse e-mail" htmlFor="email" hint="Utilisée pour cette réservation et pour retrouver votre billet.">
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        required
-                        maxLength={254}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="ousmaneballondor@gmail.com"
-                      />
-                    </Field>
-
-                    {error && <Alert tone="danger">{error}</Alert>}
-
-                    <Button type="submit" variant="cta" size="lg" block loading={loading}>
-                      {!loading && <Ticket aria-hidden />}
-                      {loading ? "Réservation en cours" : full ? "Retrouver mon billet" : "Réserver ma place"}
-                    </Button>
-
-                    <p className="text-center text-xs text-subtle">
-                      Vos données ne servent qu’à émettre votre billet.{" "}
-                      <Link href="/confidentialite" className="font-medium underline underline-offset-2 hover:text-ink">
-                        En savoir plus
-                      </Link>
+                <div className="space-y-4">
+                  <MyTickets eventId={event.id} />
+                  <Card className="p-5 sm:p-6">
+                    <h2 className="text-2xl font-extrabold">{full ? "Retrouver mon billet" : "Réserver ma place"}</h2>
+                    <p className="mt-1 text-[0.95rem] text-subtle">
+                      {full
+                        ? "Cette séance est complète. Si vous aviez réservé, saisissez les mêmes informations pour retrouver votre billet."
+                        : "Gratuit. Votre billet s’affiche dès la réservation."}
                     </p>
-                  </form>
-                </Card>
+
+                    <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+                      <Field label="Nom" htmlFor="name">
+                        <Input
+                          id="name"
+                          name="name"
+                          type="text"
+                          autoComplete="name"
+                          autoCapitalize="words"
+                          required
+                          maxLength={100}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Ousmane Dembélé"
+                        />
+                      </Field>
+
+                      <Field label="Adresse e-mail" htmlFor="email" hint="Utilisée pour cette réservation et pour retrouver votre billet.">
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          autoCapitalize="none"
+                          required
+                          maxLength={254}
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="ousmaneballondor@gmail.com"
+                        />
+                      </Field>
+
+                      {error && <Alert tone="danger">{error}</Alert>}
+
+                      <Button type="submit" variant="cta" size="lg" block loading={loading}>
+                        {!loading && <Ticket aria-hidden />}
+                        {loading ? "Réservation en cours" : full ? "Retrouver mon billet" : "Réserver ma place"}
+                      </Button>
+
+                      <p className="text-center text-xs text-subtle">
+                        Vos données ne servent qu’à émettre votre billet.{" "}
+                        <Link href="/confidentialite" className="font-medium underline underline-offset-2 hover:text-ink">
+                          En savoir plus
+                        </Link>
+                      </p>
+                    </form>
+                  </Card>
+                </div>
               )}
             </div>
           </aside>

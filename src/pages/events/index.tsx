@@ -4,6 +4,7 @@ import { ArrowRight, Clapperboard, Clock, MapPin, Ticket } from "lucide-react";
 import { db } from "@/server/db";
 import { branding } from "@/config/branding";
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { MyTickets } from "@/components/ticket/MyTickets";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -183,6 +184,8 @@ export default function EventsPage({ events }: { events: PublicEvent[] }) {
         <h2 id="upcoming" className="sr-only">
           Séances à venir
         </h2>
+
+        <MyTickets className="mb-6 sm:mb-8" />
 
         {events.length === 0 ? (
           <EmptyState

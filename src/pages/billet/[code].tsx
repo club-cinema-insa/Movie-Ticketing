@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { CalendarDays, CalendarPlus, CircleCheck, Clapperboard, Clock, DoorOpen, Download, Hourglass, MapPin } from "lucide-react";
@@ -13,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildIcs, downloadTextFile } from "@/lib/ics";
 import { useOfflineTicket } from "@/lib/offlineTicket";
+import { forgetTicket } from "@/lib/savedTickets";
 import { eventSchedule, formatDayWithYear, runtimeInfo } from "@/lib/format";
 
 // Même forme que le code du QR code.
@@ -106,7 +108,18 @@ export default function TicketPage(props: TicketPageProps) {
   const [cancelling, setCancelling] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState("");
-  const offline = useOfflineTicket(props.state === "ok" && !cancelled);
+  const router = useRouter();
+  const offline = useOfflineTicket(
+    props.state === "ok" && !cancelled
+      ? { code: props.ticket.code, eventId: props.event.id, eventName: props.event.name, date: props.event.date }
+      : null,
+  );
+
+  // Billet annulé ou supprimé : il quitte la liste « Mes billets » de l'appareil.
+  useEffect(() => {
+    const code = props.state === "ok" ? props.ticket.code : router.query.code;
+    if (typeof code === "string" && (props.state === "gone" || cancelled)) forgetTicket(code);
+  }, [props, cancelled, router.query.code]);
 
   if (props.state === "gone") return <Gone />;
   const { ticket, event, token, cancelBlocked } = props;

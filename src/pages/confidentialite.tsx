@@ -60,9 +60,9 @@ export default function PrivacyPage() {
           </p>
           <p>Il n’y a ni publicité, ni suivi, ni cookie sur le site public.</p>
           <p>
-            Pour que votre billet reste affichable sans réseau, la page de votre billet est enregistrée sur votre appareil,
-            dans le stockage de votre navigateur. Rien n’est envoyé ailleurs, et vous pouvez l’effacer en vidant les données du
-            site.
+            Pour que votre billet reste affichable sans réseau, la page de votre billet et la liste de vos billets (nom de la
+            séance, date, numéro de billet) sont enregistrées sur votre appareil, dans le stockage de votre navigateur. Rien
+            n’est envoyé ailleurs, et vous pouvez tout effacer en vidant les données du site.
           </p>
         </Section>
 
