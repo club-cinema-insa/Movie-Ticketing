@@ -24,13 +24,18 @@ export function parseRegistration(input: { name?: unknown; email?: unknown }): P
   return { ok: true, name, email };
 }
 
-/** Participant identifié par son email, sans tenir compte de la casse. */
+/**
+ * Participant identifié par son email, sans tenir compte de la casse.
+ * Le nom saisi le plus récemment est celui qu'on garde (il figure sur le billet et dans l'e-mail).
+ */
 export async function findOrCreateParticipant(name: string, email: string): Promise<Participant> {
   const find = () =>
     db.participant.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
 
   const existing = await find();
-  if (existing) return existing;
+  if (existing) {
+    return existing.name === name ? existing : db.participant.update({ where: { id: existing.id }, data: { name } });
+  }
 
   try {
     return await db.participant.create({ data: { name, email } });
