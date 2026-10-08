@@ -30,6 +30,9 @@ export const authOptions: NextAuthOptions = {
     DiscordProvider({
       clientId: env.AUTH_DISCORD_ID,
       clientSecret: env.AUTH_DISCORD_SECRET,
+      // Discord renvoie désormais son identité (paramètre `iss`, RFC 9207) à la fin de la connexion :
+      // sans émetteur déclaré, la bibliothèque rejette la réponse (« issuer must be configured »).
+      issuer: "https://discord.com",
     }),
   ],
   pages: {
